@@ -7,7 +7,7 @@ object JsonSchemaTypes {
   case object Arr extends JsonSchemaType
   case object Num extends JsonSchemaType
   case object Bool extends JsonSchemaType
-  case object Ref extends JsonSchemaType
+  case object Null extends JsonSchemaType
 
 
   sealed trait JsonSchemaStructure extends Any
@@ -15,7 +15,8 @@ object JsonSchemaTypes {
   case class JSA_definitions(value: java.lang.String) extends JsonSchemaStructure
   case class JSA_schema(value: java.lang.String) extends JsonSchemaStructure
   case class JSA_id(value: java.lang.String) extends JsonSchemaStructure
-  case class JSA_type(value: java.lang.String) extends JsonSchemaStructure
+  case class JSA_ref(value: java.lang.String) extends JsonSchemaStructure
+  case class JSA_type(value: JsonSchemaType) extends JsonSchemaStructure
   case class JSA_title(value: java.lang.String) extends JsonSchemaStructure
   case class JSA_required(value: Array[String]) extends JsonSchemaStructure
   case class JSA_properties(value: Seq[JsonSchemaProperty]) extends JsonSchemaStructure
@@ -23,14 +24,14 @@ object JsonSchemaTypes {
   case class JSA_description(value: java.lang.String) extends JsonSchemaStructure
 
 
-  case class JsonSchemaProperty(name: String, `type`: Option[String], description: Option[String], properties: Option[Seq[JsonSchemaProperty]], required: Option[Array[String]])
+  case class JsonSchemaProperty(name: String, `type`: Option[JsonSchemaType], description: Option[String], properties: Option[Seq[JsonSchemaProperty]], required: Option[Array[String]])
   object JsonSchemaProperty {
     @Override
     def apply(name:String, vs: Seq[JsonSchemaStructure]): JsonSchemaProperty = {
       var id: Option[String] = None
       var schema: Option[String] = None
       var title: Option[String] = None
-      var `type`: Option[String] = None
+      var `type`: Option[JsonSchemaType] = None
       var properties: Option[Seq[JsonSchemaProperty]] = None
       var required: Option[Array[String]] = None
       var description: Option[String] = None
@@ -52,21 +53,23 @@ object JsonSchemaTypes {
   }
 
 
-  case class JsonSchema(id: Option[String], schema: Option[String], title: Option[String], `type`: Option[String], properties: Option[Seq[JsonSchemaProperty]], required: Option[Array[String]])
+  case class JsonSchema(id: Option[String], ref: Option[String], schema: Option[String], title: Option[String], `type`: Option[JsonSchemaType], properties: Option[Seq[JsonSchemaProperty]], required: Option[Array[String]])
 
   object JsonSchema {
     @Override
     def apply(vs: Seq[JsonSchemaStructure]): JsonSchema = {
       var id: Option[String] = None
+      var ref: Option[String] = None
       var schema: Option[String] = None
       var title: Option[String] = None
-      var `type`: Option[String] = None
+      var `type`: Option[JsonSchemaType] = None
       var required: Option[Array[String]] = None
       var description: Option[String] = None
       var properties: Option[Seq[JsonSchemaProperty]] = None
       vs.foreach( jss => {
         jss match {
           case v: JSA_id => id = Some(v.value)
+          case v: JSA_ref => ref = Some(v.value)
           case v: JSA_schema => schema = Some(v.value)
           case v: JSA_title => title = Some(v.value)
           case v: JSA_type => `type` = Some(v.value)
@@ -75,7 +78,7 @@ object JsonSchemaTypes {
           case v: JSA_description => description = Some(v.value)
         }
       })
-      return new JsonSchema(id,schema,title,`type`,properties,required)
+      return new JsonSchema(id,ref,schema,title,`type`,properties,required)
     }
   }
 }

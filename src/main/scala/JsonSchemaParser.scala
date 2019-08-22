@@ -1,5 +1,6 @@
-import fastparse._
+import fastparse.{Parsed, _}
 import MultiLineWhitespace._
+
 import scala.io.Source
 import JsonSchemaTypes._
 
@@ -8,17 +9,13 @@ object JsonSchemaParser {
 
   def stringChars(c: Char) = c != '\"' && c != '\\'
 
-  def space[_: P]         = P( CharsWhileIn(" \r\n", 0) )
-  def digits[_: P]        = P( CharsWhileIn("0-9") )
-  def exponent[_: P]      = P( CharIn("eE") ~ CharIn("+\\-").? ~ digits )
-  def fractional[_: P]    = P( "." ~ digits )
-  def integral[_: P]      = P( "0" | CharIn("1-9")  ~ digits.? )
-
-  def number[_: P] = P(  CharIn("+\\-").? ~ integral ~ fractional.? ~ exponent.? ).!
-
-  def `null`[_: P]        = P( "null" )
-  def `false`[_: P]       = P( "false" )
-  def `true`[_: P]        = P( "true" )
+  def `null`[_: P]: P[JsonSchemaType]        = P( "null" ).map(_ => Null)
+  def `false`[_: P]: P[JsonSchemaType]       = P( "false" ).map(_ => Bool)
+  def `true`[_: P]: P[JsonSchemaType]        = P( "true" ).map(_ => Bool)
+  def `str`[_: P]: P[JsonSchemaType]        = P( "string" ).map(_ => Str)
+  def `num`[_: P]: P[JsonSchemaType]        = P( "number" ).map(_ => Num)
+  def `arr`[_: P]: P[JsonSchemaType]        = P( "array" ).map(_ => Arr)
+  def `obj`[_: P]: P[JsonSchemaType]        = P( "object" ).map(_ => Obj)
 
   def hexDigit[_: P]      = P( CharIn("0-9a-fA-F") )
   def unicodeEscape[_: P] = P( "u" ~ hexDigit ~ hexDigit ~ hexDigit ~ hexDigit )
@@ -27,12 +24,13 @@ object JsonSchemaParser {
   def strChars[_: P] = P( CharsWhile(stringChars) )
   def string[_: P]: P[String] = P( "\"" ~/ (strChars | escape).rep.! ~ "\"").map(_.toString)
 
-  //def pair[_: P]: P[JSA_pair] = P( string ~/ ":" ~/ obj ).map(v => JSA_pair(v._1,v._2))
+  def types[_: P]: P[JsonSchemaType] = P( "\"" ~/ (`null` | `false` | `true` | `str` | `num` | `arr`) ~/ "\"").map(_.asInstanceOf[JsonSchemaType])
 
   def definitions[_: P]: P[JsonSchemaStructure] = P( "\"definitions\"" ~/ ":" ~/ string ).map(JSA_definitions(_))
   def schema[_: P]: P[JsonSchemaStructure] = P( "\"$schema\"" ~/ ":" ~/ string ).map(JSA_schema(_))
   def id[_: P]: P[JsonSchemaStructure] = P( "\"$id\"" ~/ ":" ~/ string ).map(JSA_id(_))
-  def `type`[_: P]: P[JsonSchemaStructure] = P( "\"type\"" ~/ ":" ~/ string ).map(JSA_type(_))
+  def ref[_: P]: P[JsonSchemaStructure] = P( "\"$ref\"" ~/ ":" ~/ string ).map(JSA_ref(_))
+  def `type`[_: P]: P[JsonSchemaStructure] = P( "\"type\"" ~/ ":" ~/ types ).map(JSA_type(_))
   def title[_: P]: P[JsonSchemaStructure] = P( "\"title\"" ~/ ":" ~/ string ).map(JSA_title(_))
   def required[_: P]: P[JsonSchemaStructure] = P( "\"required\"" ~/ ":" ~/ array ).map(JSA_required(_))
   def properties[_: P]: P[JsonSchemaStructure] = P( "\"properties\"" ~/ ":" ~/ "{" ~/ jsonProperty.rep(sep=","./) ~ "}").map(JSA_properties(_))
@@ -49,6 +47,16 @@ object JsonSchemaParser {
     val s: String = Source.fromFile("sample.txt").getLines.mkString("\n")
     val Parsed.Success(value, _) = parse(s, jsonExpr(_))
     println(value)
+  }
+
+  def jsFromString(s: String): JsonSchema = {
+    val Parsed.Success(value, _) = parse(s, jsonExpr(_))
+    return value
+  }
+
+  def jsFromFile(fileName: String): JsonSchema = {
+    val s: String = Source.fromFile("sample.txt").getLines.mkString("\n")
+    return jsFromString(s)
   }
 
 }
