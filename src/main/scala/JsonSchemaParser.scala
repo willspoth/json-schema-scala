@@ -1,31 +1,7 @@
 import fastparse._
 import MultiLineWhitespace._
 import scala.io.Source
-
-
-sealed trait JsonSchemaTypes
-
-case object JSStr extends JsonSchemaTypes
-case object JSObj extends JsonSchemaTypes
-case object JSArr extends JsonSchemaTypes
-case object JSNum extends JsonSchemaTypes
-case object JSBool extends JsonSchemaTypes
-case object JSRef extends JsonSchemaTypes
-
-
-sealed trait JsonSchemaStructure extends Any
-
-case class JSA_definitions(value: java.lang.String) extends JsonSchemaStructure
-case class JSA_schema(value: java.lang.String) extends JsonSchemaStructure
-case class JSA_id(value: java.lang.String) extends JsonSchemaStructure
-case class JSA_type(value: java.lang.String) extends JsonSchemaStructure
-case class JSA_title(value: java.lang.String) extends JsonSchemaStructure
-case class JSA_required(value: Array[String]) extends JsonSchemaStructure
-case class JSA_properties(value: JsonSchema) extends JsonSchemaStructure
-case class JSA_pair(key: java.lang.String, value: java.lang.String) extends JsonSchemaStructure
-
-
-case class JsonSchema(value: Seq[JsonSchemaStructure])//value: scala.collection.mutable.HashMap[String, JsonSchemaStructure])
+import JsonSchemaTypes._
 
 
 object JsonSchemaParser {
@@ -51,7 +27,7 @@ object JsonSchemaParser {
   def strChars[_: P] = P( CharsWhile(stringChars) )
   def string[_: P]: P[String] = P( "\"" ~/ (strChars | escape).rep.! ~ "\"").map(_.toString)
 
-  def pair[_: P]: P[JSA_pair] = P( string ~/ ":" ~/ string ).map(v => JSA_pair(v._1,v._2))
+  //def pair[_: P]: P[JSA_pair] = P( string ~/ ":" ~/ obj ).map(v => JSA_pair(v._1,v._2))
 
   def definitions[_: P]: P[JsonSchemaStructure] = P( "\"definitions\"" ~/ ":" ~/ string ).map(JSA_definitions(_))
   def schema[_: P]: P[JsonSchemaStructure] = P( "\"$schema\"" ~/ ":" ~/ string ).map(JSA_schema(_))
@@ -59,20 +35,15 @@ object JsonSchemaParser {
   def `type`[_: P]: P[JsonSchemaStructure] = P( "\"type\"" ~/ ":" ~/ string ).map(JSA_type(_))
   def title[_: P]: P[JsonSchemaStructure] = P( "\"title\"" ~/ ":" ~/ string ).map(JSA_title(_))
   def required[_: P]: P[JsonSchemaStructure] = P( "\"required\"" ~/ ":" ~/ array ).map(JSA_required(_))
-  def properties[_: P]: P[JsonSchemaStructure] = P( "\"properties\"" ~/ ":" ~/ obj ).map(JSA_properties(_))
+  def properties[_: P]: P[JsonSchemaStructure] = P( "\"properties\"" ~/ ":" ~/ "{" ~/ jsonProperty.rep(sep=","./) ~ "}").map(JSA_properties(_))
+  def description[_: P]: P[JsonSchemaStructure] = P( "\"description\"" ~/ ":" ~/ string ).map(JSA_description(_))
 
   def array[_: P]: P[Array[String]] = P( "[" ~/ string.rep(sep=","./) ~ "]").map(Array[String](_:_*))
 
-  def obj[_: P]: P[JsonSchema] = P( "{" ~/ (definitions | schema | id | `type` | title | required | properties | pair).rep(sep=","./) ~ "}").map(JsonSchema(_))
-  /*_.foldLeft(scala.collection.mutable.HashMap[String,JsonSchemaStructure]()){case(acc,v)=>{
-    v match {
-      case _:JSA_definitions => acc.put("",v)
-    }
-    acc
-  }
-  })
-*/
-  def jsonExpr[_: P]: P[JsonSchema] = P(obj)
+  def jsonProperty[_: P]: P[JsonSchemaProperty] = P( string ~/ ":" ~/ "{" ~/ (`type` | required | properties | description).rep(sep=","./) ~ "}" ).map(x => JsonSchemaProperty(x._1,x._2))
+
+  def jsonSchema[_: P]: P[JsonSchema] = P( "{" ~/ (definitions | schema | id | `type` | title | required | properties | description).rep(sep=","./) ~ "}").map(JsonSchema(_))
+  def jsonExpr[_: P]: P[JsonSchema] = P(jsonSchema)
 
   def main(args: Array[String]): Unit = {
     val s: String = Source.fromFile("sample.txt").getLines.mkString("\n")
