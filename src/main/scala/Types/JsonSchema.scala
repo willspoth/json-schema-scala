@@ -1,6 +1,21 @@
+package Types
+
+import com.fasterxml.jackson.core.{JsonFactory, JsonParser}
+import com.fasterxml.jackson.core.JsonToken.{END_ARRAY, END_OBJECT, FIELD_NAME, START_ARRAY, START_OBJECT, VALUE_EMBEDDED_OBJECT, VALUE_FALSE, VALUE_NULL, VALUE_NUMBER_FLOAT, VALUE_NUMBER_INT, VALUE_STRING, VALUE_TRUE}
+
+
 object JsonSchema {
 
-  sealed trait JsonSchemaType
+  sealed trait JsonSchemaType {
+    def add(k:String, v: JsonSchemaType): Unit = ???
+  }
+
+  case class Obj(m: scala.collection.mutable.HashMap[String,JsonSchemaType]) extends JsonSchemaType {
+    override def add(k:String, v: JsonSchemaType): Unit = m.put(k,v)
+  }
+  case class Arr(l: scala.collection.mutable.ListBuffer[JsonSchemaType]) extends JsonSchemaType {
+    override def add(k:String, v: JsonSchemaType): Unit = l.append(v)
+  }
 
   case object Str extends JsonSchemaType {
     override def toString: String = "string"
@@ -20,27 +35,24 @@ object JsonSchema {
   case object Null extends JsonSchemaType {
     override def toString: String = "null"
   }
-  case object Empty extends JsonSchemaType {
-    override def toString: String = "empty"
-  }
 
 
   sealed trait JsonSchemaStructure extends Any
 
   case class JSA_schema(value: String) extends JsonSchemaStructure {
-    override def toString: String = s""""$$schema":${value.toString}"""
+    override def toString: String = s""""$$schema":"${value.toString}""""
   }
   case class JSA_id(value: String) extends JsonSchemaStructure {
-    override def toString: String = s""""$$id":${value.toString}"""
+    override def toString: String = s""""$$id":"${value.toString}""""
   }
   case class JSA_ref(value: String) extends JsonSchemaStructure {
-    override def toString: String = s""""$$ref":${value.toString}"""
+    override def toString: String = s""""$$ref":"${value.toString}""""
   }
   case class JSA_title(value: String) extends JsonSchemaStructure {
-    override def toString: String = s""""title":${value.toString}"""
+    override def toString: String = s""""title":"${value.toString}""""
   }
   case class JSA_description(value: String) extends JsonSchemaStructure {
-    override def toString: String = s""""description":${value.toString}"""
+    override def toString: String = s""""description":"${value.toString}""""
   }
   case class JSA_type(value: JsonSchemaType) extends JsonSchemaStructure {
     override def toString: String = s""""type":"${value.toString}""""
@@ -48,7 +60,7 @@ object JsonSchema {
   case class JSA_properties(value: Map[String,JSS]) extends JsonSchemaStructure {
     override def toString: String = s""""properties":{${value.map{case(k,v) => "\""+k+"\":"+v.toString}.mkString(",")}}"""
   }
-  case class JSA_required(value: Seq[String]) extends JsonSchemaStructure {
+  case class JSA_required(value: Set[String]) extends JsonSchemaStructure {
     override def toString: String = s""""required":[${value.map(x => '"' + x + '"').mkString(",")}]"""
   }
   case class JSA_items(value: JSS) extends JsonSchemaStructure {
@@ -133,6 +145,47 @@ object JsonSchema {
         anyOf = anyOf
       )
     }
+  }
+
+
+  private def getJEObj(parser: JsonParser): JsonSchemaType = {
+    // stack containing previous JsonExplorerType
+    val JEStack: scala.collection.mutable.Stack[JsonSchemaType] = scala.collection.mutable.Stack[JsonSchemaType]()
+    while(!parser.isClosed){
+      parser.nextToken() match {
+        case FIELD_NAME =>
+        // basic types
+        case VALUE_STRING => JEStack.top.add(parser.getCurrentName,Str)
+        case VALUE_NUMBER_INT | VALUE_NUMBER_FLOAT => JEStack.top.add(parser.getCurrentName,Num)
+        case VALUE_NULL => JEStack.top.add(parser.getCurrentName,Null)
+        case VALUE_TRUE | VALUE_FALSE => JEStack.top.add(parser.getCurrentName,Bool)
+        case START_OBJECT =>
+          JEStack.push(new Obj(new scala.collection.mutable.HashMap[String,JsonSchemaType]()))
+
+        case END_OBJECT =>
+          var JEval = JEStack.pop()
+          if(JEStack.isEmpty) { // ended base object, don't want to read null after so add to
+            return JEval
+          } else { // pop off stack and add to new top
+            JEStack.top.add(parser.getCurrentName, JEval)
+          }
+        case START_ARRAY =>
+          JEStack.push(new Arr(new scala.collection.mutable.ListBuffer[JsonSchemaType]()))
+        case END_ARRAY =>
+          var JEval = JEStack.pop()
+          JEStack.top.add(parser.getCurrentName,JEval)
+
+        case VALUE_EMBEDDED_OBJECT => throw new Exception("Embedded_Object_Found??? " + parser.getCurrentToken.asString())
+      }
+    }
+    throw new Exception("Unescaped")
+  }
+
+
+  def serialize(row: String): JsonSchemaType = {
+    val factory = new JsonFactory()
+    val parser: JsonParser = factory.createParser(row)
+    return getJEObj(parser)
   }
 
 }

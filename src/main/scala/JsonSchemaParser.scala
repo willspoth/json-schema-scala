@@ -2,7 +2,7 @@ import fastparse.{Parsed, _}
 import MultiLineWhitespace._
 
 import scala.io.Source
-import JsonSchema._
+import Types.JsonSchema._
 
 
 object JsonSchemaParser {
@@ -17,7 +17,6 @@ object JsonSchemaParser {
   def `num`[_: P]: P[JsonSchemaType]        = P( ("number" | "integer") ).map(_ => Num)
   def `arr`[_: P]: P[JsonSchemaType]        = P( "array" ).map(_ => Arr)
   def `obj`[_: P]: P[JsonSchemaType]        = P( "object" ).map(_ => Obj)
-  def `empty`[_: P]: P[JsonSchemaType]        = P( "empty" ).map(_ => Obj)
 
   def hexDigit[_: P]      = P( CharIn("0-9a-fA-F") )
   def unicodeEscape[_: P] = P( "u" ~ hexDigit ~ hexDigit ~ hexDigit ~ hexDigit )
@@ -26,7 +25,7 @@ object JsonSchemaParser {
   def strChars[_: P] = P( CharsWhile(stringChars) )
   def string[_: P]: P[String] = P( "\"" ~/ (strChars | escape).rep.! ~ "\"").map(_.toString)
 
-  def types[_: P]: P[JsonSchemaType] = P( "\"" ~/ (`null` | `bool` | `false` | `true` | `str` | `num` | `arr` | `obj` | `empty`) ~/ "\"").map(_.asInstanceOf[JsonSchemaType])
+  def types[_: P]: P[JsonSchemaType] = P( "\"" ~/ (`null` | `bool` | `false` | `true` | `str` | `num` | `arr` | `obj`) ~/ "\"").map(_.asInstanceOf[JsonSchemaType])
 
   //def definitions[_: P]: P[JsonSchemaStructure] = P( "\"definitions\"" ~/ ":" ~/ string ).map(JSA_definitions(_))
   def schema[_: P]: P[JsonSchemaStructure] = P( "\"$schema\"" ~/ ":" ~/ string ).map(JSA_schema(_))
@@ -34,16 +33,17 @@ object JsonSchemaParser {
   def ref[_: P]: P[JsonSchemaStructure] = P( "\"$ref\"" ~/ ":" ~/ string ).map(JSA_ref(_))
   def `type`[_: P]: P[JsonSchemaStructure] = P( "\"type\"" ~/ ":" ~/ types ).map(JSA_type(_))
   def title[_: P]: P[JsonSchemaStructure] = P( "\"title\"" ~/ ":" ~/ string ).map(JSA_title(_))
-  def required[_: P]: P[JsonSchemaStructure] = P( "\"required\"" ~/ ":" ~/ array ).map(JSA_required(_))
+  def required[_: P]: P[JsonSchemaStructure] = P( "\"required\"" ~/ ":" ~/ array ).map(x => JSA_required(x.toSet))
   def properties[_: P]: P[JsonSchemaStructure] = P( "\"properties\"" ~/ ":" ~/ "{" ~/ jsonProperty.rep(sep=","./) ~ "}").map(x => JSA_properties(x.toMap))
   def description[_: P]: P[JsonSchemaStructure] = P( "\"description\"" ~/ ":" ~/ string ).map(JSA_description(_))
   def anyOf[_: P]: P[JsonSchemaStructure] = P( "\"anyOf\"" ~/ ":" ~/ "[" ~/ jsonSchema.rep(sep=","./) ~ "]").map(x => JSA_anyOf(x))
+  def items[_: P]: P[JsonSchemaStructure] = P( "\"items\"" ~/ ":" ~/ jsonSchema ).map(x => JSA_items(x))
 
   def array[_: P]: P[Array[String]] = P( "[" ~/ string.rep(sep=","./) ~ "]").map(Array[String](_:_*))
 
-  def jsonProperty[_: P]: P[(String,JSS)] = P( string ~/ ":" ~/ "{" ~/ (`type` | required | properties | description).rep(sep=","./) ~ "}" ).map(x => (x._1,JSS(x._2)))
+  def jsonProperty[_: P]: P[(String,JSS)] = P( string ~/ ":" ~/ jsonSchema ).map(x => (x._1,x._2))
 
-  def jsonSchema[_: P]: P[JSS] = P( "{" ~/ ( schema | id | `type` | title | required | properties | description).rep(sep=","./) ~ "}").map(JSS(_))
+  def jsonSchema[_: P]: P[JSS] = P( "{" ~/ ( schema | id | `type` | title | required | properties | description | anyOf | items).rep(sep=","./) ~ "}").map(JSS(_))
   def jsonExpr[_: P]: P[JSS] = P(jsonSchema)
 
   def main(args: Array[String]): Unit = {
