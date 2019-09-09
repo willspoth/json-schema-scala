@@ -69,6 +69,12 @@ object JsonSchema {
   case class JSA_anyOf(value: Seq[JSS]) extends JsonSchemaStructure {
     override def toString: String = s""""anyOf":[${value.map(x => x.toString).mkString(",")}]"""
   }
+  case class JSA_maxItems(value: Double) extends JsonSchemaStructure {
+    override def toString: String = s""""maxItems":${value.toString}"""
+  }
+  case class JSA_maxProperties(value: Double) extends JsonSchemaStructure {
+    override def toString: String = s""""maxItems":${value.toString}"""
+  }
   //  case class JSA_definitions(value: Map[String,JSS]) extends JsonSchemaStructure {
   //    override def toString: String = s"\"definitions\":{${value.map{case(k,v) => "\""+k+"\":"+v.toString}.mkString(",")}}"
   //  }
@@ -84,7 +90,9 @@ object JsonSchema {
                   properties: Option[ JSA_properties ] = None,
                   required: Option[ JSA_required ] = None,
                   items: Option[ JSA_items ] = None,
-                  anyOf: Option[ JSA_anyOf ] = None
+                  anyOf: Option[ JSA_anyOf ] = None,
+                  maxItems: Option[ JSA_maxItems ] = None,
+                  maxProperties: Option[ JSA_maxProperties ] = None
                 )
   {
     override def toString: String = {
@@ -99,7 +107,9 @@ object JsonSchema {
           properties,
           required,
           items,
-          anyOf
+          anyOf,
+          maxItems,
+          maxProperties
         ).filterNot(_.equals(None)).map(_.get.toString).mkString(",") +
         "}"
     }
@@ -118,6 +128,8 @@ object JsonSchema {
       var required: Option[ JSA_required ] = None
       var items: Option[ JSA_items ] = None
       var anyOf: Option[ JSA_anyOf ] = None
+      var maxItems: Option[ JSA_maxItems ] = None
+      var maxProperties: Option[ JSA_maxProperties ] = None
       vs.foreach( jss => {
         jss match {
           case v: JSA_schema => schema = Some(v)
@@ -130,6 +142,8 @@ object JsonSchema {
           case v: JSA_required => required = Some(v)
           case v: JSA_items => items = Some(v)
           case v: JSA_anyOf => anyOf = Some(v)
+          case v: JSA_maxItems => maxItems = Some(v)
+          case v: JSA_maxProperties => maxProperties = Some(v)
         }
       })
       return new JSS(
@@ -142,7 +156,9 @@ object JsonSchema {
         properties = properties,
         required = required,
         items = items,
-        anyOf = anyOf
+        anyOf = anyOf,
+        maxItems = maxItems,
+        maxProperties = maxProperties
       )
     }
   }

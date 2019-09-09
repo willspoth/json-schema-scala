@@ -3,7 +3,7 @@ import play.api.libs.json.Json
 object ManualTests {
 
   def main(args: Array[String]): Unit = {
-    val v  = JsonSchemaParser.jsFromFile("sample.schema.json")
+    val v  = JsonSchemaParser.jsFromFile("trumpTwitter.schema.json")
 
     println(
       Json.prettyPrint(
@@ -12,6 +12,8 @@ object ManualTests {
     )
 
     println("Precision: " + Metrics.Precision.calculatePrecision(v))
+    println("Grouping: " + Metrics.Grouping.calculateGrouping(v))
+
 
   }
 }

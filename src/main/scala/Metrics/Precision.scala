@@ -18,6 +18,9 @@ object Precision {
             schema.properties match {
               case None => return BigInt(1) // leaf
               case Some(leaf) =>
+                //(schema.`type`.equals(Arr) && schema.maxItems.getOrElse(1.0) == 0.0) || (schema.`type`.equals(Obj) && schema.maxProperties.getOrElse(1.0) == 0.0)
+                if(leaf.value.size == 0) // is an empty array or empty obj
+                  return BigInt(1)
                 leaf.value.map(x => {
                   calculatePrecision(x._2) * (if(requiredSet.contains(x._1)) BigInt(1) else BigInt(2))
                 }).reduce(_*_)
