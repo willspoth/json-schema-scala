@@ -1,19 +1,32 @@
 import play.api.libs.json.Json
 
+import scala.io.Source
+
 object ManualTests {
 
   def main(args: Array[String]): Unit = {
-    val v  = JsonSchemaParser.jsFromFile("trumpTwitter.schema.json")
+    val fileName: String = "/home/will/Data/jsonData/test"
 
-    println(
-      Json.prettyPrint(
-        Json.parse(v.toString)
+    val schema  = JsonSchemaParser.jsFromFile(fileName.split("/").last+".schema.json")
+
+//    println(
+//      Json.prettyPrint(
+//        Json.parse(schema.toString)
+//      )
+//    )
+
+    println("Precision: " + Metrics.Precision.calculatePrecision(schema))
+    println("Grouping: " + Metrics.Grouping.calculateGrouping(schema))
+
+    val rows = Source.fromFile(fileName+".json").getLines.foreach( r => {
+      println(
+        Metrics.Validation.validateRow(
+          schema,
+          Types.Json.shred(r)
+        )
       )
-    )
+    })
 
-    println("Precision: " + Metrics.Precision.calculatePrecision(v))
-    println("Grouping: " + Metrics.Grouping.calculateGrouping(v))
-
-
+    println("done")
   }
 }
