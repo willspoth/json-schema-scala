@@ -9,6 +9,9 @@ object JsonSchemaParser {
 
   def stringChars(c: Char) = c != '\"' && c != '\\'
 
+  def `trueB`[_: P]: P[Boolean]        = P( "true" ).map(_ => true)
+  def `falseB`[_: P]: P[Boolean]        = P( "false" ).map(_ => false)
+
   def `null`[_: P]: P[JsonSchemaType]        = P( "null" ).map(_ => Null)
   def `false`[_: P]: P[JsonSchemaType]       = P( "false" ).map(_ => Bool)
   def `true`[_: P]: P[JsonSchemaType]        = P( "true" ).map(_ => Bool)
@@ -49,12 +52,13 @@ object JsonSchemaParser {
   def items[_: P]: P[JsonSchemaStructure] = P( "\"items\"" ~/ ":" ~/ jsonSchema ).map(x => JSA_items(x))
   def maxItems[_: P]: P[JsonSchemaStructure] = P("\"maxItems\"" ~/ ":" ~/ number ).map(x => JSA_maxItems(x))
   def maxProperties[_: P]: P[JsonSchemaStructure] = P("\"maxProperties\"" ~/ ":" ~/ number ).map(x => JSA_maxItems(x))
+  def additionalProperties[_: P]: P[JsonSchemaStructure] = P("\"additionalProperties\"" ~/ ":" ~/ (`trueB` | `falseB`) ).map(x => JSA_additionalProperties(x))
 
   def array[_: P]: P[Array[String]] = P( "[" ~/ string.rep(sep=","./) ~ "]").map(Array[String](_:_*))
 
   def jsonProperty[_: P]: P[(String,JSS)] = P( string ~/ ":" ~/ jsonSchema ).map(x => (x._1,x._2))
 
-  def jsonSchema[_: P]: P[JSS] = P( "{" ~/ ( schema | id | `type` | title | required | properties | description | anyOf | items | maxItems | maxProperties).rep(sep=","./) ~ "}").map(JSS(_))
+  def jsonSchema[_: P]: P[JSS] = P( "{" ~/ ( schema | id | `type` | title | required | properties | description | anyOf | items | maxItems | maxProperties | additionalProperties).rep(sep=","./) ~ "}").map(JSS(_))
   def jsonExpr[_: P]: P[JSS] = P(jsonSchema)
 
   def main(args: Array[String]): Unit = {
