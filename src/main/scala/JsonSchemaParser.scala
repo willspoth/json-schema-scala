@@ -3,6 +3,10 @@ import MultiLineWhitespace._
 
 import scala.io.Source
 import Types.JsonSchema._
+import ch.qos.logback.classic.{Level, Logger}
+import org.slf4j.LoggerFactory
+
+import scala.reflect.io.File
 
 
 object JsonSchemaParser {
@@ -49,10 +53,12 @@ object JsonSchemaParser {
   def properties[_: P]: P[JsonSchemaStructure] = P( "\"properties\"" ~/ ":" ~/ "{" ~/ jsonProperty.rep(sep=","./) ~ "}").map(x => JSA_properties(x.toMap))
   def description[_: P]: P[JsonSchemaStructure] = P( "\"description\"" ~/ ":" ~/ string ).map(JSA_description(_))
   def anyOf[_: P]: P[JsonSchemaStructure] = P( "\"anyOf\"" ~/ ":" ~/ "[" ~/ jsonSchema.rep(sep=","./) ~ "]").map(x => JSA_anyOf(x))
+  def oneOf[_: P]: P[JsonSchemaStructure] = P( "\"oneOf\"" ~/ ":" ~/ "[" ~/ jsonSchema.rep(sep=","./) ~ "]").map(x => JSA_oneOf(x))
   def items[_: P]: P[JsonSchemaStructure] = P( "\"items\"" ~/ ":" ~/ jsonSchema ).map(x => JSA_items(x))
   def maxItems[_: P]: P[JsonSchemaStructure] = P("\"maxItems\"" ~/ ":" ~/ number ).map(x => JSA_maxItems(x))
   def maxProperties[_: P]: P[JsonSchemaStructure] = P("\"maxProperties\"" ~/ ":" ~/ number ).map(x => JSA_maxItems(x))
   def additionalProperties[_: P]: P[JsonSchemaStructure] = P("\"additionalProperties\"" ~/ ":" ~/ (`trueB` | `falseB`) ).map(x => JSA_additionalProperties(x))
+
 
   def array[_: P]: P[Array[String]] = P( "[" ~/ string.rep(sep=","./) ~ "]").map(Array[String](_:_*))
 
@@ -61,11 +67,6 @@ object JsonSchemaParser {
   def jsonSchema[_: P]: P[JSS] = P( "{" ~/ ( schema | id | `type` | title | required | properties | description | anyOf | items | maxItems | maxProperties | additionalProperties).rep(sep=","./) ~ "}").map(JSS(_))
   def jsonExpr[_: P]: P[JSS] = P(jsonSchema)
 
-  def main(args: Array[String]): Unit = {
-    val s: String = Source.fromFile("sample.txt").getLines.mkString("\n")
-    val Parsed.Success(value, _) = parse(s, jsonExpr(_))
-    println(value)
-  }
 
   def jsFromString(s: String): JSS = {
     val Parsed.Success(value, _) = parse(s, jsonExpr(_))
@@ -75,6 +76,101 @@ object JsonSchemaParser {
   def jsFromFile(fileName: String): JSS = {
     val s: String = Source.fromFile(fileName).getLines.mkString("\n")
     return jsFromString(s)
+  }
+
+  def main(args: Array[String]): Unit = {
+    val config = readArgs(args)
+
+    val root: Logger  = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[Logger]
+    root.setLevel(config.logLevel)
+
+    val schema: JSS = jsFromFile(config.schemaFile)
+
+    if(config.calculatePrecision)
+      println("Precision: "+ Metrics.Precision.calculatePrecision(schema).toString())
+
+    config.validate match {
+      case Some(s) =>
+        if (s.charAt(0).equals('{')) { // guess is string for now
+          val v = Metrics.Validation.calculateValidation(schema,Array(s))
+          if(v == 1.0) println("true") else println("false")
+        } else {
+          val f = new java.io.File(s)
+          if(f.exists() && f.isFile){ // is single file
+            println("validation: " + Metrics.Validation.calculateValidation(schema,Source.fromFile(s).getLines.toArray).toString)
+          } else if(f.exists() && f.isDirectory){ // is directory
+            val files = getListOfFiles(s)
+            val totalVal = files.map(file => {
+              val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(file.toString).getLines.toArray)
+              println(file.getName+" validation: " + v.toString)
+              v
+            }).reduce(_*_)
+            println("Dir " + s + " validation: " + totalVal.toString)
+
+          } else {
+            throw new Exception("file " + s + " existence: " + f.exists().toString)
+          }
+        }
+      case None => // do nothing
+    }
+
+  }
+
+
+
+
+  def readArgs(args: Array[String]): config = {
+    if (args.size == 0 || args.size % 2 == 0) {
+      println("Unexpected Argument, should be, schemaFileName -val string|file|dir -prec true -logLevel INFO")
+      System.exit(0)
+    }
+    val argMap = scala.collection.mutable.HashMap[String, String]()
+    val schemaFile: String = args(0)
+    if (args.tail.size > 1) {
+      val argPairs = args.tail.zip(args.tail.tail).zipWithIndex.filter(_._2 % 2 == 0).map(_._1).foreach(x => argMap.put(x._1, x._2))
+    }
+
+    val calculatePrecision: Boolean = argMap.get("-prec") match {
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false" | "f") => false
+      case _ | None => true
+    }
+
+    val logLevel: Level = argMap.get("-logLevel") match {
+      case Some(s) => s.toUpperCase() match {
+        case "TRACE" => Level.TRACE
+        case "DEBUG" => Level.DEBUG
+        case "ALL" => Level.ALL
+        case "INFO" => Level.INFO
+        case "WARN" => Level.WARN
+        case _ => Level.WARN
+      }
+      case _ | None => Level.WARN
+    }
+
+    val validate: Option[String] = argMap.get("-val")
+
+    config(
+      schemaFile,
+      calculatePrecision,
+      validate,
+      logLevel
+    )
+  }
+
+  case class config(schemaFile: String,
+                    calculatePrecision: Boolean,
+                    validate: Option[String],
+                    logLevel: Level
+                   )
+
+  def getListOfFiles(dir: String):List[java.io.File] = {
+    val d = new java.io.File(dir)
+    if (d.exists && d.isDirectory) {
+      d.listFiles.filter(_.isFile).toList
+    } else {
+      List[java.io.File]()
+    }
   }
 
 }
