@@ -64,7 +64,7 @@ object JsonSchemaParser {
 
   def jsonProperty[_: P]: P[(String,JSS)] = P( string ~/ ":" ~/ jsonSchema ).map(x => (x._1,x._2))
 
-  def jsonSchema[_: P]: P[JSS] = P( "{" ~/ ( schema | id | `type` | title | required | properties | description | anyOf | items | maxItems | maxProperties | additionalProperties).rep(sep=","./) ~ "}").map(JSS(_))
+  def jsonSchema[_: P]: P[JSS] = P( "{" ~/ ( schema | id | `type` | title | required | properties | description | anyOf | oneOf | items | maxItems | maxProperties | additionalProperties).rep(sep=","./) ~ "}").map(JSS(_))
   def jsonExpr[_: P]: P[JSS] = P(jsonSchema)
 
 

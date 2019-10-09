@@ -27,104 +27,114 @@ object Validation {
         anyOf.value.map( s => validateRow(s,attribute,name))
           .reduce(_||_)
       case None =>
-        attribute match {
-          case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array =>
-            val typeCheck = compareTypes(schema,attribute)
-            if (typeCheck)
-              logger.debug(name + ": " + attribute.getClass + " found and ok")
-            else
-              logger.debug(name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
-            typeCheck
+        if (!schema.oneOf.equals(None)){
+          val matches = schema.oneOf.get.value.map( s => validateRow(s,attribute,name)).map(x => if (x) 1 else 0)
+            .reduce(_+_)
+          if (matches > 1)
+            logger.debug(name + ": oneOf " + matches.toString + " matches found, expected 1")
+          matches == 1
+        } else {
 
-          case JE_Empty_Object =>
-            val typeCheck = compareTypes(schema,attribute)
-            if (typeCheck)
-              logger.debug(name + ": " + attribute.getClass + " found and ok")
-            else
-              logger.debug(name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
+          attribute match {
+            case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array =>
+              val typeCheck = compareTypes(schema, attribute)
+              if (typeCheck)
+                logger.debug(name + ": " + attribute.getClass + " found and ok")
+              else
+                logger.debug(name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
+              typeCheck
 
-            typeCheck && (schema.additionalProperties.getOrElse(JSA_additionalProperties(false)).value || schema.required.getOrElse(JSA_required(Set[String]())).value.isEmpty)
+            case JE_Empty_Object =>
+              val typeCheck = compareTypes(schema, attribute)
+              if (typeCheck)
+                logger.debug(name + ": " + attribute.getClass + " found and ok")
+              else
+                logger.debug(name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
 
-          case JE_Object(m) =>
-            schema.maxProperties match { // check on constraint
-              case None =>
-              case Some(max) =>
-                if (m.size > max.value) {
-                  logger.debug(name + " maxProperties: " + max.value.toString + " found size: " + m.size.toString)
-                  return false
-                }
-            }
+              typeCheck && (schema.additionalProperties.getOrElse(JSA_additionalProperties(false)).value || schema.required.getOrElse(JSA_required(Set[String]())).value.isEmpty)
 
-            val passesRequiredCheck: Boolean = schema.required match {
-              case Some(req) =>
-                if ((req.value.size > 0)) req.value.map(t => {
-                  if(!m.contains(t))
-                    logger.debug(name+" does not contain required attribute: " + t)
-                  m.contains(t)
-                }).reduce(_&&_)
-                else true
-              case None => true
-            }
-
-            if(passesRequiredCheck == false)
-              logger.debug(name+": Failed required check")
-
-            val allAttributesPass: Boolean = m.map{ case(n,t) => {
-              schema.properties match {
-                case Some(s) =>
-                  s.value.get(n) match {
-                    case Some(v) =>
-                      validateRow(v, t, n)
-                    case None =>
-                      logger.debug(name+": Attribute "+n+" not found")
-                      false
+            case JE_Object(m) =>
+              schema.maxProperties match { // check on constraint
+                case None =>
+                case Some(max) =>
+                  if (m.size > max.value) {
+                    logger.debug(name + " maxProperties: " + max.value.toString + " found size: " + m.size.toString)
+                    return false
                   }
-                case None =>
-                  logger.debug(name+": No properties Found")
-                  false
               }
-            }}.reduce(_&&_)
 
-            val additionalProperties: Boolean = schema.additionalProperties match {
-              case Some(b) => b.value
-              case None => false
-            }
+              val passesRequiredCheck: Boolean = schema.required match {
+                case Some(req) =>
+                  if ((req.value.size > 0)) req.value.map(t => {
+                    if (!m.contains(t))
+                      logger.debug(name + " does not contain required attribute: " + t)
+                    m.contains(t)
+                  }).reduce(_ && _)
+                  else true
+                case None => true
+              }
 
-            if(additionalProperties && !passesRequiredCheck)
-              logger.debug(name+"Passes only due to additional properties")
+              if (passesRequiredCheck == false)
+                logger.debug(name + ": Failed required check")
 
-            schema.`type`.get.value.equals(Obj) &&
-              (passesRequiredCheck || additionalProperties) &&
-            allAttributesPass
-
-
-          case JE_Array(a) =>
-            schema.maxItems match { // check on constraint
-              case None =>
-              case Some(max) =>
-                if (a.size > max.value){
-                  logger.debug(name + " maxItems: " + max.value.toString + " found size: " + a.size.toString)
-                  return false
+              val allAttributesPass: Boolean = m.map { case (n, t) => {
+                schema.properties match {
+                  case Some(s) =>
+                    s.value.get(n) match {
+                      case Some(v) =>
+                        validateRow(v, t, n)
+                      case None =>
+                        logger.debug(name + ": Attribute " + n + " not found")
+                        false
+                    }
+                  case None =>
+                    logger.debug(name + ": No properties Found")
+                    false
                 }
-            }
-
-            if(!schema.required.equals(None)){
-              logger.error(name+": Unexpected required fields in array")
-            }
-
-            val arrayCheck: Boolean = (a.map(sArr => {
-              schema.items match {
-                case Some(s) =>
-                  validateRow(s.value,sArr, name+"[*]")
-                case None =>
-                  logger.debug(name+": Empty Array Found")
-                  return false
               }
-            }).reduce(_&&_))
+              }.reduce(_ && _)
 
-            schema.`type`.get.value.equals(Arr) &&
-            arrayCheck
+              val additionalProperties: Boolean = schema.additionalProperties match {
+                case Some(b) => b.value
+                case None => false
+              }
 
+              if (additionalProperties && !passesRequiredCheck)
+                logger.debug(name + "Passes only due to additional properties")
+
+              schema.`type`.get.value.equals(Obj) &&
+                (passesRequiredCheck || additionalProperties) &&
+                allAttributesPass
+
+
+            case JE_Array(a) =>
+              schema.maxItems match { // check on constraint
+                case None =>
+                case Some(max) =>
+                  if (a.size > max.value) {
+                    logger.debug(name + " maxItems: " + max.value.toString + " found size: " + a.size.toString)
+                    return false
+                  }
+              }
+
+              if (!schema.required.equals(None)) {
+                logger.error(name + ": Unexpected required fields in array")
+              }
+
+              val arrayCheck: Boolean = (a.map(sArr => {
+                schema.items match {
+                  case Some(s) =>
+                    validateRow(s.value, sArr, name + "[*]")
+                  case None =>
+                    logger.debug(name + ": Empty Array Found")
+                    return false
+                }
+              }).reduce(_ && _))
+
+              schema.`type`.get.value.equals(Arr) &&
+                arrayCheck
+
+          }
         }
     }
 

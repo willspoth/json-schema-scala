@@ -22,7 +22,10 @@ object Precision {
                 if(leaf.value.size == 0) // is an empty array or empty obj
                   return BigInt(1)
                 leaf.value.map(x => {
-                  calculatePrecision(x._2) * (if(requiredSet.contains(x._1)) BigInt(1) else BigInt(2))
+                  if(!x._2.oneOf.equals(None)) // is a oneOf
+                    calculatePrecision(x._2) + (if(requiredSet.contains(x._1)) BigInt(0) else BigInt(1))
+                  else
+                    calculatePrecision(x._2) * (if(requiredSet.contains(x._1)) BigInt(1) else BigInt(2))
                 }).reduce(_*_)
             }
           case Some(item) => calculatePrecision(item.value)
