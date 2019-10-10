@@ -3,8 +3,8 @@ import MultiLineWhitespace._
 
 import scala.io.Source
 import Types.JsonSchema._
-import ch.qos.logback.classic.{Level, Logger}
-import org.slf4j.LoggerFactory
+//import ch.qos.logback.classic.{Level, Logger}
+//import org.slf4j.LoggerFactory
 
 import scala.reflect.io.File
 
@@ -81,8 +81,8 @@ object JsonSchemaParser {
   def main(args: Array[String]): Unit = {
     val config = readArgs(args)
 
-    val root: Logger  = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[Logger]
-    root.setLevel(config.logLevel)
+//    val root: Logger  = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[Logger]
+//    root.setLevel(config.logLevel)
 
     val schema: JSS = jsFromFile(config.schemaFile)
 
@@ -100,7 +100,7 @@ object JsonSchemaParser {
             println("validation: " + Metrics.Validation.calculateValidation(schema,Source.fromFile(s).getLines.toArray).toString)
           } else if(f.exists() && f.isDirectory){ // is directory
             val files = getListOfFiles(s)
-            val totalVal = files.map(file => {
+            val totalVal = files.filter(x => !x.getName.charAt(0).equals('_') && !x.getName.charAt(0).equals('.')).map(file => {
               val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(file.toString).getLines.toArray)
               println(file.getName+" validation: " + v.toString)
               v
@@ -136,32 +136,32 @@ object JsonSchemaParser {
       case _ | None => true
     }
 
-    val logLevel: Level = argMap.get("-logLevel") match {
-      case Some(s) => s.toUpperCase() match {
-        case "TRACE" => Level.TRACE
-        case "DEBUG" => Level.DEBUG
-        case "ALL" => Level.ALL
-        case "INFO" => Level.INFO
-        case "WARN" => Level.WARN
-        case _ => Level.WARN
-      }
-      case _ | None => Level.WARN
-    }
+//    val logLevel: Level = argMap.get("-logLevel") match {
+//      case Some(s) => s.toUpperCase() match {
+//        case "TRACE" => Level.TRACE
+//        case "DEBUG" => Level.DEBUG
+//        case "ALL" => Level.ALL
+//        case "INFO" => Level.INFO
+//        case "WARN" => Level.WARN
+//        case _ => Level.WARN
+//      }
+//      case _ | None => Level.WARN
+//    }
 
     val validate: Option[String] = argMap.get("-val")
 
     config(
       schemaFile,
       calculatePrecision,
-      validate,
-      logLevel
+      validate//,
+//      logLevel
     )
   }
 
   case class config(schemaFile: String,
                     calculatePrecision: Boolean,
-                    validate: Option[String],
-                    logLevel: Level
+                    validate: Option[String]//,
+                    //logLevel: Level
                    )
 
   def getListOfFiles(dir: String):List[java.io.File] = {

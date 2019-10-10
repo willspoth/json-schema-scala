@@ -2,13 +2,14 @@ package Metrics
 
 import Types.Json.{JE_Array, JE_Boolean, JE_Empty_Array, JE_Empty_Object, JE_Null, JE_Numeric, JE_Object, JE_String}
 import Types.JsonSchema.{Arr, Bool, JSA_additionalProperties, JSA_required, JSS, Null, Num, Obj, Str}
-import com.typesafe.scalalogging.slf4j.Logger
-import org.slf4j.LoggerFactory
+//import com.typesafe.scalalogging.slf4j.Logger
+import org.apache.spark.rdd.RDD
+//import org.slf4j.LoggerFactory
 
 
 object Validation {
 
-  val logger = Logger(LoggerFactory.getLogger("Validation"))
+  //val logger = Logger(LoggerFactory.getLogger("Validation"))
 
   def calculateValidation(schema: JSS, rows: Array[String]): Double = {
     rows.map(x => {
@@ -19,8 +20,17 @@ object Validation {
     }).reduce(_+_) / rows.size.toDouble
   }
 
+  def calculateValidation(schema: JSS, rows: RDD[String]): Double = {
+    rows.map(x => {
+      if(validateRow(schema,Types.Json.shred(x)))
+        1.0
+      else
+        0.0
+    }).reduce(_+_) / rows.count().toDouble
+  }
+
   def validateRow(schema: JSS, attribute: Types.Json.JsonExplorerType, name: String = ""): Boolean = {
-    logger.trace(name + ": validating attribute")
+    //logger.trace(name + ": validating attribute")
 
     schema.anyOf match {
       case Some(anyOf) =>
@@ -30,26 +40,26 @@ object Validation {
         if (!schema.oneOf.equals(None)){
           val matches = schema.oneOf.get.value.map( s => validateRow(s,attribute,name)).map(x => if (x) 1 else 0)
             .reduce(_+_)
-          if (matches > 1)
-            logger.debug(name + ": oneOf " + matches.toString + " matches found, expected 1")
+          //if (matches > 1)
+          //logger.debug(name + ": oneOf " + matches.toString + " matches found, expected 1")
           matches == 1
         } else {
 
           attribute match {
             case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array =>
               val typeCheck = compareTypes(schema, attribute)
-              if (typeCheck)
-                logger.debug(name + ": " + attribute.getClass + " found and ok")
-              else
-                logger.debug(name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
+//              if (typeCheck)
+//                logger.debug(name + ": " + attribute.getClass + " found and ok")
+//              else
+//                logger.debug(name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
               typeCheck
 
             case JE_Empty_Object =>
               val typeCheck = compareTypes(schema, attribute)
-              if (typeCheck)
-                logger.debug(name + ": " + attribute.getClass + " found and ok")
-              else
-                logger.debug(name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
+//              if (typeCheck)
+//                logger.debug(name + ": " + attribute.getClass + " found and ok")
+//              else
+//                logger.debug(name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
 
               typeCheck && (schema.additionalProperties.getOrElse(JSA_additionalProperties(false)).value || schema.required.getOrElse(JSA_required(Set[String]())).value.isEmpty)
 
@@ -58,7 +68,7 @@ object Validation {
                 case None =>
                 case Some(max) =>
                   if (m.size > max.value) {
-                    logger.debug(name + " maxProperties: " + max.value.toString + " found size: " + m.size.toString)
+                    //logger.debug(name + " maxProperties: " + max.value.toString + " found size: " + m.size.toString)
                     return false
                   }
               }
@@ -66,16 +76,16 @@ object Validation {
               val passesRequiredCheck: Boolean = schema.required match {
                 case Some(req) =>
                   if ((req.value.size > 0)) req.value.map(t => {
-                    if (!m.contains(t))
-                      logger.debug(name + " does not contain required attribute: " + t)
+//                    if (!m.contains(t))
+//                      logger.debug(name + " does not contain required attribute: " + t)
                     m.contains(t)
                   }).reduce(_ && _)
                   else true
                 case None => true
               }
 
-              if (passesRequiredCheck == false)
-                logger.debug(name + ": Failed required check")
+//              if (passesRequiredCheck == false)
+//                logger.debug(name + ": Failed required check")
 
               val allAttributesPass: Boolean = m.map { case (n, t) => {
                 schema.properties match {
@@ -84,11 +94,11 @@ object Validation {
                       case Some(v) =>
                         validateRow(v, t, n)
                       case None =>
-                        logger.debug(name + ": Attribute " + n + " not found")
+                        //logger.debug(name + ": Attribute " + n + " not found")
                         false
                     }
                   case None =>
-                    logger.debug(name + ": No properties Found")
+                    //logger.debug(name + ": No properties Found")
                     false
                 }
               }
@@ -99,8 +109,8 @@ object Validation {
                 case None => false
               }
 
-              if (additionalProperties && !passesRequiredCheck)
-                logger.debug(name + "Passes only due to additional properties")
+//              if (additionalProperties && !passesRequiredCheck)
+//                logger.debug(name + "Passes only due to additional properties")
 
               schema.`type`.get.value.equals(Obj) &&
                 (passesRequiredCheck || additionalProperties) &&
@@ -112,21 +122,21 @@ object Validation {
                 case None =>
                 case Some(max) =>
                   if (a.size > max.value) {
-                    logger.debug(name + " maxItems: " + max.value.toString + " found size: " + a.size.toString)
+                    //logger.debug(name + " maxItems: " + max.value.toString + " found size: " + a.size.toString)
                     return false
                   }
               }
 
-              if (!schema.required.equals(None)) {
-                logger.error(name + ": Unexpected required fields in array")
-              }
+//              if (!schema.required.equals(None)) {
+//                logger.error(name + ": Unexpected required fields in array")
+//              }
 
               val arrayCheck: Boolean = (a.map(sArr => {
                 schema.items match {
                   case Some(s) =>
                     validateRow(s.value, sArr, name + "[*]")
                   case None =>
-                    logger.debug(name + ": Empty Array Found")
+                    //logger.debug(name + ": Empty Array Found")
                     return false
                 }
               }).reduce(_ && _))

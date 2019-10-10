@@ -2,9 +2,9 @@ import java.io.File
 
 import Metrics.Tools
 
-import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.Logger
+//import org.slf4j.LoggerFactory
+//import ch.qos.logback.classic.Level
+//import ch.qos.logback.classic.Logger
 
 import scala.io.Source
 
@@ -12,8 +12,8 @@ object SigmodTests {
 
   def main(args: Array[String]): Unit = {
 
-    val root: Logger  = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[Logger]
-    root.setLevel(Level.TRACE)
+//    val root: Logger  = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[Logger]
+//    root.setLevel(Level.TRACE)
 
     def getListOfFiles(dir: String):List[File] = {
       val d = new File(dir)
