@@ -83,7 +83,7 @@ object CMDLineParser {
 
   // takes command line file location as override
   def createSparkSession(confFile: Option[String]): SparkSession = {
-    System.setProperty("hadoop.home.dir","/")
+    //System.setProperty("hadoop.home.dir","/")
 
     val spark_conf_file: String = confFile.getOrElse(scala.util.Properties.envOrElse("SPARK_CONF_FILE", getClass.getResource("/spark.conf").getFile))
     val lines = Source.fromFile(spark_conf_file).getLines.toList

@@ -4,6 +4,8 @@ version := "0.1"
 
 scalaVersion := "2.11.11"
 
+Compile/mainClass := Some("Sigmod")
+
 libraryDependencies ++= Seq(
   "com.lihaoyi"                   %% "fastparse"                 % "2.1.0",
 
@@ -11,3 +13,37 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % "2.3.2",
   "org.apache.hadoop" % "hadoop-common" % "2.7.7"
 )
+
+dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7"
+
+test in assembly := {}
+assemblyJarName in assembly := "JsonSchemaSigmod.jar"
+mainClass in assembly := Some("Sigmod")
+val nettyMeta = ".*META-INF\\/io\\.netty.*".r
+assemblyMergeStrategy in assembly := {
+  case PathList("org","aopalliance", xs @ _*) => MergeStrategy.last
+  case PathList("javax", "inject", xs @ _*) => MergeStrategy.last
+  case PathList("javax", "servlet", xs @ _*) => MergeStrategy.last
+  case PathList("javax", "activation", xs @ _*) => MergeStrategy.last
+  case PathList("org", "apache", xs @ _*) => MergeStrategy.last
+  case PathList("io", "netty", xs @ _*) => MergeStrategy.last
+  case PathList("com", "google", xs @ _*) => MergeStrategy.last
+  case PathList("com", "esotericsoftware", xs @ _*) => MergeStrategy.last
+  case PathList("com", "codahale", xs @ _*) => MergeStrategy.last
+  case PathList("com", "yammer", xs @ _*) => MergeStrategy.last
+  case PathList("ch", "qos", xs @ _*) => MergeStrategy.first
+  case PathList("org", "slf4j", xs @ _*) => MergeStrategy.first
+  case PathList("org", "codehaus", xs @ _*) => MergeStrategy.last
+  case PathList("com", "googlecode", xs @ _*) => MergeStrategy.last
+  case PathList("com", "fasterxml", xs @ _*) => MergeStrategy.last
+  case "overview.html" => MergeStrategy.rename
+  case "about.html" => MergeStrategy.rename
+  case "META-INF/ECLIPSEF.RSA" => MergeStrategy.last
+  case "META-INF/mailcap" => MergeStrategy.last
+  case "META-INF/mimetypes.default" => MergeStrategy.last
+  case nettyMeta() => MergeStrategy.last
+  case "plugin.properties" => MergeStrategy.last
+  case "log4j.properties" => MergeStrategy.last
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}
