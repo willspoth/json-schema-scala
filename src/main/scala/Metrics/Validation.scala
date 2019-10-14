@@ -186,7 +186,7 @@ object Validation {
           case JE_String => return t.value.equals(Str)
           case JE_Numeric => return t.value.equals(Num)
           case JE_Boolean => return t.value.equals(Bool)
-          case JE_Null => return t.value.equals(Null) || true
+          case JE_Null => return t.value.equals(Null)
           case JE_Empty_Array => return t.value.equals(Arr)
           case JE_Empty_Object => return t.value.equals(Obj)
         }

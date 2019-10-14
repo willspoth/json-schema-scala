@@ -87,6 +87,8 @@ object JsonSchemaParser {
     if(config.calculatePrecision)
       println("Precision: "+ Metrics.Precision.calculatePrecision(schema).toString())
 
+    println("Grouping: "+ Metrics.Grouping.calculateGrouping(schema).toString())
+
     config.validate match {
       case Some(s) =>
         if (s.charAt(0).equals('{')) { // guess is string for now
@@ -95,15 +97,18 @@ object JsonSchemaParser {
         } else {
           val f = new java.io.File(s)
           if(f.exists() && f.isFile){ // is single file
-            println("validation: " + Metrics.Validation.calculateValidation(schema,Source.fromFile(s).getLines.toArray).toString)
+            val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(s).getLines.toArray)
+            println("Validation: " + (v._1/v._3).toString)
+            println("Schema Saturation: " + v._2.mkString(","))
           } else if(f.exists() && f.isDirectory){ // is directory
             val files = getListOfFiles(s)
             val totalVal = files.filter(x => !x.getName.charAt(0).equals('_') && !x.getName.charAt(0).equals('.')).map(file => {
               val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(file.toString).getLines.toArray)
-              println(file.getName+" validation: " + v.toString)
+              println(file.getName+" validation: " + (v._1/v._3).toString)
+              println("Schema Saturation: " + v._2.mkString(","))
               v
             }).map(_._1).reduce(_*_)
-            println("Dir " + s + " validation: " + totalVal.toString)
+            println("Dir " + s + " Validation: " + totalVal.toString)
 
           } else {
             throw new Exception("file " + s + " existence: " + f.exists().toString)
