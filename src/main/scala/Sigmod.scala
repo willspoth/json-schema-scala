@@ -12,7 +12,6 @@ import scala.io.Source
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 
-//{"payload": {"action": "created", "comment": {"body": "Thank you! /cc @marco-streng", "url": "https://api.github.com/repos/prantlf/timezone-support/issues/comments/500497874", "created_at": "2019-06-10T17:07:49Z", "author_association": "NONE", "html_url": "https://github.com/prantlf/timezone-support/pull/9#issuecomment-500497874", "updated_at": "2019-06-10T17:07:49Z", "node_id": "MDEyOklzc3VlQ29tbWVudDUwMDQ5Nzg3NA==", "user": {"following_url": "https://api.github.com/users/danielbayerlein/following{/other_user}", "events_url": "https://api.github.com/users/danielbayerlein/events{/privacy}", "avatar_url": "https://avatars2.githubusercontent.com/u/457834?v=4", "url": "https://api.github.com/users/danielbayerlein", "gists_url": "https://api.github.com/users/danielbayerlein/gists{/gist_id}", "html_url": "https://github.com/danielbayerlein", "subscriptions_url": "https://api.github.com/users/danielbayerlein/subscriptions", "node_id": "MDQ6VXNlcjQ1NzgzNA==", "repos_url": "https://api.github.com/users/danielbayerlein/repos", "received_events_url": "https://api.github.com/users/danielbayerlein/received_events", "gravatar_id": "", "starred_url": "https://api.github.com/users/danielbayerlein/starred{/owner}{/repo}", "site_admin": false, "login": "danielbayerlein", "type": "User", "id": 457834, "followers_url": "https://api.github.com/users/danielbayerlein/followers", "organizations_url": "https://api.github.com/users/danielbayerlein/orgs"}, "id": 500497874, "issue_url": "https://api.github.com/repos/prantlf/timezone-support/issues/9"}, "issue": {"labels": [], "number": 9, "assignee": null, "repository_url": "https://api.github.com/repos/prantlf/timezone-support", "closed_at": "2019-06-10T16:02:58Z", "id": 427185931, "title": "Make parser be aware of \"Z\" character as timezone offset", "pull_request": {"url": "https://api.github.com/repos/prantlf/timezone-support/pulls/9", "diff_url": "https://github.com/prantlf/timezone-support/pull/9.diff", "html_url": "https://github.com/prantlf/timezone-support/pull/9", "patch_url": "https://github.com/prantlf/timezone-support/pull/9.patch"}, "comments": 9, "state": "closed", "body": "", "events_url": "https://api.github.com/repos/prantlf/timezone-support/issues/9/events", "labels_url": "https://api.github.com/repos/prantlf/timezone-support/issues/9/labels{/name}", "author_association": "CONTRIBUTOR", "comments_url": "https://api.github.com/repos/prantlf/timezone-support/issues/9/comments", "html_url": "https://github.com/prantlf/timezone-support/pull/9", "updated_at": "2019-06-10T17:07:49Z", "node_id": "MDExOlB1bGxSZXF1ZXN0MjY1ODcxNzYy", "user": {"following_url": "https://api.github.com/users/lucifurtun/following{/other_user}", "events_url": "https://api.github.com/users/lucifurtun/events{/privacy}", "avatar_url": "https://avatars2.githubusercontent.com/u/3864555?v=4", "url": "https://api.github.com/users/lucifurtun", "gists_url": "https://api.github.com/users/lucifurtun/gists{/gist_id}", "html_url": "https://github.com/lucifurtun", "subscriptions_url": "https://api.github.com/users/lucifurtun/subscriptions", "node_id": "MDQ6VXNlcjM4NjQ1NTU=", "repos_url": "https://api.github.com/users/lucifurtun/repos", "received_events_url": "https://api.github.com/users/lucifurtun/received_events", "gravatar_id": "", "starred_url": "https://api.github.com/users/lucifurtun/starred{/owner}{/repo}", "site_admin": false, "login": "lucifurtun", "type": "User", "id": 3864555, "followers_url": "https://api.github.com/users/lucifurtun/followers", "organizations_url": "https://api.github.com/users/lucifurtun/orgs"}, "milestone": null, "locked": false, "url": "https://api.github.com/repos/prantlf/timezone-support/issues/9", "created_at": "2019-03-29T21:31:37Z", "assignees": []}}, "created_at": "2019-06-10T17:07:49Z", "actor": {"url": "https://api.github.com/users/danielbayerlein", "display_login": "danielbayerlein", "avatar_url": "https://avatars.githubusercontent.com/u/457834?", "gravatar_id": "", "login": "danielbayerlein", "id": 457834}, "id": "9792328339", "repo": {"url": "https://api.github.com/repos/prantlf/timezone-support", "id": 145323192, "name": "prantlf/timezone-support"}, "type": "IssueCommentEvent", "public": true}
 
 //java -Xmx10g -Xss10m -jar JsonSchemaSigmod.jar yelpUSFixed.log yelp.conf
 object Sigmod {
@@ -32,9 +31,14 @@ object Sigmod {
     val outputFile = new FileWriter(args(0)+".res",true)
     val configFile: String = args(1)
 
-    var forcedInputFile: Option[String] = None
+    var numberOfRows: Option[Int] = None
     if(args.size == 3){
-      forcedInputFile = Some(args(2))
+      numberOfRows = Some(args(2).toInt)
+    }
+
+    var forcedInputFile: Option[String] = None
+    if(args.size == 4){
+      forcedInputFile = Some(args(3))
     }
 
     val spark = CMDLineParser.createSparkSession(Some(configFile))
