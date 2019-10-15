@@ -58,7 +58,7 @@ object Sigmod {
       val validationSize: Int = info.get("ValidationSize").get.toInt
       val seed: Int = info.get("Seed").get.toInt
 
-      val (train,validation) = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,Some(seed))
+      val (train,validation) = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,Some(seed),numberOfRows)
 
 
       log += LogOutput("inputFile",inputFile,"inputFile: ")
