@@ -93,7 +93,7 @@ object JsonSchemaParser {
       case Some(s) =>
         if (s.charAt(0).equals('{')) { // guess is string for now
           val v = Metrics.Validation.calculateValidation(schema,Array(s))
-          if(v == 1.0) println("true") else println("false")
+          if((v._1/v._3) == 1.0) println("true") else println("false")
         } else {
           val f = new java.io.File(s)
           if(f.exists() && f.isFile){ // is single file
