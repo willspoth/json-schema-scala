@@ -22,8 +22,8 @@ object Sigmod {
 
   def main(args: Array[String]): Unit = {
 
-//    Logger.getLogger("org").setLevel(Level.DEBUG)
-//    Logger.getLogger("akka").setLevel(Level.DEBUG)
+    //Logger.getLogger("org").setLevel(Level.OFF)
+    //Logger.getLogger("akka").setLevel(Level.OFF)
     Logger.getLogger(Metrics.Validation.getClass).setLevel(Level.OFF)
 
     // logFile
@@ -56,16 +56,18 @@ object Sigmod {
       val totalTime: String = info.get("TotalTime").get
       val trainPrecent: Double = info.get("TrainPercent").get.toDouble
       val validationSize: Int = info.get("ValidationSize").get.toInt
-      val seed: Int = info.get("Seed").get.toInt
+      val seed: Option[Int] = info.get("Seed") match {
+        case Some(s) => Some(s.toInt)
+        case None => None
+      }
 
-      val (train,validation) = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,Some(seed),numberOfRows)
+      val (train,validation) = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,seed,numberOfRows)
 
 
       log += LogOutput("inputFile",inputFile,"inputFile: ")
       log += LogOutput("TotalTime",totalTime,"TotalTime: ")
 
       log += LogOutput("TrainPercent",trainPrecent.toString,"TrainPercent: ")
-      log += LogOutput("TrainSizeActual",train.count().toString(),"TrainSizeActual: ")
       log += LogOutput("ValidationSize",validationSize.toString,"ValidationSize: ")
       log += LogOutput("ValidationSizeActual",validation.count().toString,"ValidationSizeActual: ")
       log += LogOutput("Seed",seed.toString,"Seed: ")
