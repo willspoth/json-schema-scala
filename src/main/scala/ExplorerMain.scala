@@ -14,7 +14,7 @@ import org.apache.log4j.Level
 
 
 //java -Xmx10g -Xss10m -jar JsonSchemaSigmod.jar yelpUSFixed.log yelp.conf
-object Sigmod {
+object ExplorerMain {
   def jsonToMap(jsonStr: String): Map[String, String] = {
     implicit val formats = org.json4s.DefaultFormats
     parse(jsonStr).extract[Map[String, String]]
@@ -43,9 +43,9 @@ object Sigmod {
 
     val spark = CMDLineParser.createSparkSession(Some(configFile))
 
-    val h: Configuration = spark.sparkContext.hadoopConfiguration
-    h.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
-    h.set("fs.file.impl", classOf[org.apache.hadoop.fs.LocalFileSystem].getName)
+//    val h: Configuration = spark.sparkContext.hadoopConfiguration
+//    h.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
+//    h.set("fs.file.impl", classOf[org.apache.hadoop.fs.LocalFileSystem].getName)
 
     while(logIter.hasNext){
       val log: mutable.ListBuffer[LogOutput] = mutable.ListBuffer[LogOutput]()
@@ -57,7 +57,7 @@ object Sigmod {
       val trainPrecent: Double = info.get("TrainPercent").get.toDouble
       val validationSize: Int = info.get("ValidationSize").get.toInt
       val seed: Option[Int] = info.get("Seed") match {
-        case Some(s) => Some(s.toInt)
+        case Some(s) => if(s.equals("None")) None else Some(s.toInt)
         case None => None
       }
 

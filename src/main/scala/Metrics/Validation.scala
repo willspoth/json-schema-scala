@@ -35,9 +35,6 @@ object Validation {
   def calculateValidation(schema: JSS, rows: RDD[String]): (Double,ListBuffer[Int],Double) = {
     val res: (Double, ListBuffer[Int]) = rows.map(x => {
       val saturation = ListBuffer[Boolean]()
-//      if(x.contains("\"attributes\":")) {
-//        val breakpoint = true
-//      }
 
       if(validateRow(schema,Types.Json.shred(x),saturation))
         (1.0,saturation.map(if (_) 1 else 0))
@@ -70,15 +67,15 @@ object Validation {
           val matches = schema.oneOf.get.value.map( s => validateRow(s,attribute,saturation,depth+1,name)).map(x => if (x) 1 else 0)
             .reduce(_+_)
           if (matches > 1)
-            logger.debug(("\t"*depth) + name + ": oneOf " + matches.toString + " matches found, expected 1")
-          matches >= 1 // only used for types now, little hack
+            logger.info(("\t"*depth) + name + ": oneOf " + matches.toString + " matches found, expected 1")
+          matches >= 1 // oneof only used for types now, little hack
         } else {
 
           attribute match {
             case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array =>
               val typeCheck = compareTypes(schema, attribute)
               if (typeCheck)
-                logger.debug(("\t"*depth) + name + ": " + attribute.getClass + " found and ok")
+                logger.info(("\t"*depth) + name + ": " + attribute.getClass + " found and ok")
               else
                 logger.debug(("\t"*depth) + name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
               typeCheck
@@ -86,7 +83,7 @@ object Validation {
             case JE_Empty_Object =>
               val typeCheck = compareTypes(schema, attribute)
               if (typeCheck)
-                logger.debug(("\t"*depth) + name + ": " + attribute.getClass + " found and ok")
+                logger.info(("\t"*depth) + name + ": " + attribute.getClass + " found and ok")
               else
                 logger.debug(("\t"*depth) + name + ": " + attribute.getClass + " found : " + schema.`type`.getOrElse(None).toString)
 
@@ -166,7 +163,7 @@ object Validation {
                     validateRow(s.value, sArr,saturation,depth+1, name + "[*]")
                   case None =>
                     logger.debug(("\t"*depth) + name + ": Empty Array Found")
-                    return false
+                    return true
                 }
               }).reduce(_ && _))
 

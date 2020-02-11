@@ -10,7 +10,8 @@ import scala.io.Source
 
 object CMDLineParser {
 
-  case class config(fileName: String,
+  case class config(schemaFileName: String,
+                    validationFileName: String,
                     logFileName: String,
                     train: RDD[String],
                     validation: RDD[String],
@@ -18,7 +19,6 @@ object CMDLineParser {
                     validationSize: Int,
                     seed: Option[Int],
                     spark: SparkSession,
-                    memory: Option[Boolean],
                     name: String,
                     argMap: mutable.HashMap[String, String],
                     Schema: String,
@@ -31,23 +31,19 @@ object CMDLineParser {
       System.exit(0)
     }
     val argMap = scala.collection.mutable.HashMap[String, String]()
-    val filename: String = args(0)
-    if (args.tail.size > 1) {
-      val argPairs = args.tail.zip(args.tail.tail).zipWithIndex.filter(_._2 % 2 == 0).map(_._1).foreach(x => argMap.put(x._1, x._2))
-    }
-
-    val memory: Option[Boolean] = argMap.get("memory") match {
-      case Some("memory" | "inmemory" | "true" | "t" | "y" | "yes") => Some(true)
-      case Some("n" | "no" | "false" | "disk") => Some(false)
-      case _ | None => None
+    val schemafilename: String = args(0)
+    val validationfilename: String = args(1)
+    val argList = args.drop(2)
+    if (argList.size > 1) {
+      argList.zip(args.tail.tail).zipWithIndex.filter(_._2 % 2 == 0).map(_._1).foreach(x => argMap.put(x._1, x._2))
     }
 
     // spark config
     val spark = createSparkSession(argMap.get("config"))
 
-    val h: Configuration = spark.sparkContext.hadoopConfiguration
-    h.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
-    h.set("fs.file.impl", classOf[org.apache.hadoop.fs.LocalFileSystem].getName)
+//    val h: Configuration = spark.sparkContext.hadoopConfiguration
+//    h.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
+//    h.set("fs.file.impl", classOf[org.apache.hadoop.fs.LocalFileSystem].getName)
 
 
     val schema: String = argMap.get("schema") match {
@@ -57,7 +53,7 @@ object CMDLineParser {
 
     val logFileName: String = argMap.get("log") match {
       case Some(s) => s
-      case _ | None => filename.split("/").last.split("-").head + ".JSSlog"
+      case _ | None => (new java.io.File(validationfilename)).getName.split("-").head+".JSSlog"
     }
 
     val seed: Option[Int] = argMap.get("seed") match {
@@ -80,25 +76,29 @@ object CMDLineParser {
       case None => None
     }
 
-    val (train, validation) = split(spark, filename, trainPercent, validationSize, seed, numberOfRows)
+    val (train, validation) = split(spark, validationfilename, trainPercent, validationSize, seed, numberOfRows)
 
-    return config(filename, logFileName, train, validation, trainPercent, validationSize, seed, spark, memory, spark.conf.get("name").toString, argMap, schema, spark.conf.getAll)
+    return config(schemafilename, validationfilename, logFileName, train, validation, trainPercent, validationSize, seed, spark, spark.conf.get("name").toString, argMap, schema, spark.conf.getAll)
   }
 
 
   // takes command line file location as override
   def createSparkSession(confFile: Option[String]): SparkSession = {
-    //System.setProperty("hadoop.home.dir","/")
 
-    val spark_conf_file: String = confFile.getOrElse(scala.util.Properties.envOrElse("SPARK_CONF_FILE", getClass.getResource("/spark.conf").getFile))
-    val lines = Source.fromFile(spark_conf_file).getLines.toList
+    val spark: SparkSession =
+      try {
+        val spark_conf_file: String = confFile.getOrElse(scala.util.Properties.envOrElse("SPARK_CONF_FILE", getClass.getResource("/spark.conf").getFile))
+        val lines = Source.fromFile(spark_conf_file).getLines.toList
+        val conf = new SparkConf()
+        val args = lines.map(_.split("#").head).filter(s => !s.contains('#') && s.length > 0).map(s => {
+          (s.split("=").head.trim, s.split("=").last.trim)
+        })
+        conf.setAll(args)
+        org.apache.spark.sql.SparkSession.builder.config(conf).getOrCreate()
+      } catch {
+          case _: java.lang.NullPointerException =>org.apache.spark.sql.SparkSession.builder.master("local[*]").appName("json-schema-scala").getOrCreate()
+      }
 
-    val conf = new SparkConf()
-    val args = lines.map(_.split("#").head).filter(s => !s.contains('#') && s.length > 0).map(s => {
-      (s.split("=").head.trim, s.split("=").last.trim)
-    })
-    conf.setAll(args)
-    val spark: SparkSession = org.apache.spark.sql.SparkSession.builder.config(conf).getOrCreate()
     return spark
   }
 

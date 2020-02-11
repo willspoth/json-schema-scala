@@ -2,23 +2,23 @@ name := "json-schema-scala"
 
 version := "0.1"
 
-scalaVersion := "2.11.11"
+scalaVersion := "2.11.8"
 
-Compile/mainClass := Some("Sigmod")
+Compile/mainClass := Some("Main")
 
 libraryDependencies ++= Seq(
   "com.lihaoyi"                   %% "fastparse"                 % "2.1.0",
 
   "org.apache.spark" %% "spark-core" % "2.3.2",
-  "org.apache.spark" %% "spark-sql" % "2.3.2",
-  "org.apache.hadoop" % "hadoop-common" % "2.7.7"
+  "org.apache.spark" %% "spark-sql" % "2.3.2"//,
+//  "org.apache.hadoop" % "hadoop-common" % "2.7.7"
 )
 
 dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7"
 
 test in assembly := {}
-assemblyJarName in assembly := "JsonSchemaSigmod.jar"
-mainClass in assembly := Some("Sigmod")
+assemblyJarName in assembly := "json-schema-scala.jar"
+mainClass in assembly := Some("Main")
 val nettyMeta = ".*META-INF\\/io\\.netty.*".r
 assemblyMergeStrategy in assembly := {
   case PathList("org","aopalliance", xs @ _*) => MergeStrategy.last
