@@ -9,8 +9,8 @@ Compile/mainClass := Some("Main")
 libraryDependencies ++= Seq(
   "com.lihaoyi"                   %% "fastparse"                 % "2.1.0",
 
-  "org.apache.spark" %% "spark-core" % "2.3.2",
-  "org.apache.spark" %% "spark-sql" % "2.3.2"//,
+  "org.apache.spark" %% "spark-core" % "2.3.4",
+  "org.apache.spark" %% "spark-sql" % "2.3.4"//,
 //  "org.apache.hadoop" % "hadoop-common" % "2.7.7"
 )
 
