@@ -4,7 +4,7 @@ version := "0.1"
 
 scalaVersion := "2.11.8"
 
-Compile/mainClass := Some("Main")
+Compile/mainClass := Some("ExplorerMain")
 
 libraryDependencies ++= Seq(
   "com.lihaoyi"                   %% "fastparse"                 % "2.1.0",
@@ -18,7 +18,7 @@ dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.
 
 test in assembly := {}
 assemblyJarName in assembly := "json-schema-scala.jar"
-mainClass in assembly := Some("Main")
+mainClass in assembly := Some("ExplorerMain")
 val nettyMeta = ".*META-INF\\/io\\.netty.*".r
 assemblyMergeStrategy in assembly := {
   case PathList("org","aopalliance", xs @ _*) => MergeStrategy.last

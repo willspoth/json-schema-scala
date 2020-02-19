@@ -125,7 +125,10 @@ object Validation {
                     }
                   case None =>
                     logger.debug(("\t"*depth) + name + ": No properties Found")
-                    false
+                    schema.`type` match {
+                      case Some(jst) => jst.value.equals(Obj)
+                      case None => false
+                    }
                 }
               }
               }.reduce(_ && _)
@@ -163,7 +166,10 @@ object Validation {
                     validateRow(s.value, sArr,saturation,depth+1, name + "[*]")
                   case None =>
                     logger.debug(("\t"*depth) + name + ": Empty Array Found")
-                    return true
+                    schema.`type` match {
+                      case Some(jst) => jst.value.equals(Arr)
+                      case None => false
+                    }
                 }
               }).reduce(_ && _))
 
