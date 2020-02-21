@@ -24,7 +24,7 @@ object ExplorerMain {
 
     //Logger.getLogger("org").setLevel(Level.OFF)
     //Logger.getLogger("akka").setLevel(Level.OFF)
-    Logger.getLogger(Metrics.Validation.getClass).setLevel(Level.OFF)
+    Logger.getLogger(Metrics.Validation.getClass).setLevel(Level.DEBUG)
 
     // logFile
     val logIter = Source.fromFile(args(0)).getLines()
