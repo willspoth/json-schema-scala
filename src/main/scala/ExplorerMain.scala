@@ -31,14 +31,19 @@ object ExplorerMain {
     val outputFile = new FileWriter(args(0)+".res",true)
     val configFile: String = args(1)
 
-    var numberOfRows: Option[Int] = None
+    var limit: Option[Int] = None
     if(args.size == 3){
-      numberOfRows = Some(args(2).toInt)
+      limit = Some(args(2).toInt)
+    }
+
+    var numberOfRows: Option[Int] = None
+    if(args.size == 4){
+      numberOfRows = Some(args(3).toInt)
     }
 
     var forcedInputFile: Option[String] = None
-    if(args.size == 4){
-      forcedInputFile = Some(args(3))
+    if(args.size == 5){
+      forcedInputFile = Some(args(4))
     }
 
     val spark = CMDLineParser.createSparkSession(Some(configFile))
@@ -70,16 +75,18 @@ object ExplorerMain {
       log += LogOutput("TrainPercent",trainPrecent.toString,"TrainPercent: ")
       log += LogOutput("ValidationSize",validationSize.toString,"ValidationSize: ")
       log += LogOutput("ValidationSizeActual",validation.count().toString,"ValidationSizeActual: ")
+      log += LogOutput("ValidationRowLimit",limit.toString,"ValidationRowLimit: ")
       log += LogOutput("Seed",seed.toString,"Seed: ")
 
       log += LogOutput("Precision",Metrics.Precision.calculatePrecision(schema).toString(),"Precision: ")
-      val validationInfo = Metrics.Validation.calculateValidation(schema,validation)
+      val validationInfo = Metrics.Validation.calculateValidation(schema,validation,limit.getOrElse(0))
       log += LogOutput("Validation",(validationInfo._1/validationInfo._2).toString(),"Validation: ")
 //      log += LogOutput("Saturation","["+validationInfo._2.mkString(",")+"]","Saturation: ")
       log += LogOutput("Grouping",Metrics.Grouping.calculateGrouping(schema).toString(),"Grouping: ")
       log += LogOutput("BaseSchemaSize",Metrics.Grouping.calculateBaseSchemaSize(schema).toString(),"Base Schemas Size: ")
 
       outputFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
+      outputFile.flush()
       println(log.map(_.toString).mkString("\n"))
     }
 
