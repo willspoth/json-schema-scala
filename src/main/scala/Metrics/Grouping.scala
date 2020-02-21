@@ -4,6 +4,13 @@ import Types.JsonSchema.JSS
 
 object Grouping {
 
+  def calculateBaseSchemaSize(schema: JSS): Int = {
+    schema.anyOf match {
+      case Some(s) => s.value.size
+      case None => 1
+    }
+  }
+
   def calculateGrouping(schema: JSS, first: Boolean = true): Int = {
 
     val g = schema.anyOf match {

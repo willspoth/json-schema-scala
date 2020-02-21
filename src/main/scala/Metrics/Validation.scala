@@ -12,59 +12,37 @@ object Validation {
 
   val logger = Logger.getLogger(this.getClass)
 
-  def calculateValidation(schema: JSS, rows: Array[String]): (Double,ListBuffer[Int],Double) = {
-    val res: (Double, ListBuffer[Int]) = rows.map(x => {
-      val saturation = ListBuffer[Boolean]()
-      if(validateRow(schema,Types.Json.shred(x),saturation))
-        (1.0,saturation.map(if (_) 1 else 0))
+  def calculateValidation(schema: JSS, rows: Array[String]): (Double,Double) = {
+    val res: Double = rows.map(x => {
+      if(validateRow(schema,Types.Json.shred(x)))
+        1.0
       else
-        (0.0,saturation.map(if (_) 1 else 0))
-    }).reduce((l,r) => {
-      val left = {
-        if(r._2.isEmpty)
-          l._2
-        else{
-          l._2.zipWithIndex.map(y => y._1 + r._2(y._2))
-        }
-      }
-      ((l._1 + r._1),left)
-    })
-    (res._1,res._2,rows.size.toDouble)
+        0.0
+    }).reduce(_+_)
+
+    (res,rows.size.toDouble)
   }
 
-  def calculateValidation(schema: JSS, rows: RDD[String]): (Double,ListBuffer[Int],Double) = {
-    val res: (Double, ListBuffer[Int]) = rows.map(x => {
-      val saturation = ListBuffer[Boolean]()
+  def calculateValidation(schema: JSS, rows: RDD[String]): (Double,Double) = {
+    val res: Double = rows.map(x => {
 
-      if(validateRow(schema,Types.Json.shred(x),saturation))
-        (1.0,saturation.map(if (_) 1 else 0))
-      else
-        (0.0,saturation.map(if (_) 1 else 0))
-    }).reduce((l,r) => {
-      val left = {
-        if(r._2.isEmpty)
-          l._2
-        else{
-          l._2.zipWithIndex.map(y => y._1 + r._2(y._2))
-        }
-      }
-      ((l._1 + r._1),left)
-    })
-    (res._1,res._2,rows.count().toDouble)
+      if(validateRow(schema,Types.Json.shred(x))) 1.0
+      else 0.0
+    }).reduce(_+_)
+
+    (res,rows.count().toDouble)
+
   }
 
-  def validateRow(schema: JSS, attribute: Types.Json.JsonExplorerType,saturation: ListBuffer[Boolean],depth: Int = 0,name: String = ""): Boolean = {
+  def validateRow(schema: JSS, attribute: Types.Json.JsonExplorerType,depth: Int = 0,name: String = ""): Boolean = {
     logger.trace(("\t"*depth) + name + ": validating attribute")
 
     schema.anyOf match {
       case Some(anyOf) =>
-        val any = anyOf.value.zipWithIndex.map( s => validateRow(s._1,attribute,saturation,depth+1,name+"anyOf["+s._2.toString+"]"))
-        if (name.size < 1) // root
-          saturation.append(any: _*)
-        any.reduce(_||_)
+        !anyOf.value.zipWithIndex.map( s => validateRow(s._1,attribute,depth+1,name+"anyOf["+s._2.toString+"]")).forall(!_)
       case None =>
         if (!schema.oneOf.equals(None)){
-          val matches = schema.oneOf.get.value.map( s => validateRow(s,attribute,saturation,depth+1,name)).map(x => if (x) 1 else 0)
+          val matches = schema.oneOf.get.value.map( s => validateRow(s,attribute,depth+1,name)).map(x => if (x) 1 else 0)
             .reduce(_+_)
           if (matches > 1)
             logger.info(("\t"*depth) + name + ": oneOf " + matches.toString + " matches found, expected 1")
@@ -118,7 +96,7 @@ object Validation {
                   case Some(s) =>
                     s.value.get(n) match {
                       case Some(v) =>
-                        validateRow(v, t,saturation,depth+1, n)
+                        validateRow(v, t,depth+1, n)
                       case None =>
                         logger.debug(("\t"*depth) + name + ": Attribute " + n + " not found")
                         false
@@ -163,7 +141,7 @@ object Validation {
               val arrayCheck: Boolean = (a.map(sArr => {
                 schema.items match {
                   case Some(s) =>
-                    validateRow(s.value, sArr,saturation,depth+1, name + "[*]")
+                    validateRow(s.value, sArr,depth+1, name + "[*]")
                   case None =>
                     logger.debug(("\t"*depth) + name + ": Empty Array Found")
                     schema.`type` match {

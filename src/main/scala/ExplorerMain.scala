@@ -74,9 +74,10 @@ object ExplorerMain {
 
       log += LogOutput("Precision",Metrics.Precision.calculatePrecision(schema).toString(),"Precision: ")
       val validationInfo = Metrics.Validation.calculateValidation(schema,validation)
-      log += LogOutput("Validation",(validationInfo._1/validationInfo._3).toString(),"Validation: ")
-      log += LogOutput("Saturation","["+validationInfo._2.mkString(",")+"]","Saturation: ")
+      log += LogOutput("Validation",(validationInfo._1/validationInfo._2).toString(),"Validation: ")
+//      log += LogOutput("Saturation","["+validationInfo._2.mkString(",")+"]","Saturation: ")
       log += LogOutput("Grouping",Metrics.Grouping.calculateGrouping(schema).toString(),"Grouping: ")
+      log += LogOutput("BaseSchemaSize",Metrics.Grouping.calculateBaseSchemaSize(schema).toString(),"Base Schemas Size: ")
 
       outputFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
       println(log.map(_.toString).mkString("\n"))
