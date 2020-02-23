@@ -97,6 +97,11 @@ object Validation {
                 //logger.debug(("\t"*depth) + name + ": Failed required check")
               }
 
+              val additionalProperties: Boolean = schema.additionalProperties match {
+                case Some(b) => b.value
+                case None => false
+              }
+
               val allAttributesPass: Boolean = m.map { case (n, t) => {
                 schema.properties match {
                   case Some(s) =>
@@ -105,7 +110,7 @@ object Validation {
                         validateRow(v, t,depth+1, n)
                       case None =>
                         //logger.debug(("\t"*depth) + name + ": Attribute " + n + " not found")
-                        false
+                        false || additionalProperties
                     }
                   case None =>
                     schema.`type` match {
@@ -119,10 +124,6 @@ object Validation {
               }
               }.reduce(_ && _)
 
-              val additionalProperties: Boolean = schema.additionalProperties match {
-                case Some(b) => b.value
-                case None => false
-              }
 
               if (additionalProperties && !passesRequiredCheck) {
                 //logger.debug(("\t"*depth) + name + "Passes only due to additional properties")
