@@ -13,22 +13,26 @@ object Precision {
 
     schema.anyOf match {
       case None =>
-        schema.items match {
+        schema.oneOf match {
+          case Some(oneOf) => oneOf.value.map(calculatePrecision(_)).reduce(_+_)
           case None =>
-            schema.properties match {
-              case None => return BigInt(1) // leaf
-              case Some(leaf) =>
-                //(schema.`type`.equals(Arr) && schema.maxItems.getOrElse(1.0) == 0.0) || (schema.`type`.equals(Obj) && schema.maxProperties.getOrElse(1.0) == 0.0)
-                if(leaf.value.size == 0) // is an empty array or empty obj
-                  return BigInt(1)
-                leaf.value.map(x => {
-                  if(!x._2.oneOf.equals(None)) // is a oneOf
-                    calculatePrecision(x._2) + (if(requiredSet.contains(x._1)) BigInt(0) else BigInt(1))
-                  else
-                    calculatePrecision(x._2) * (if(requiredSet.contains(x._1)) BigInt(1) else BigInt(2))
-                }).reduce(_*_)
+            schema.items match {
+              case None =>
+                schema.properties match {
+                  case None => return BigInt(1) // leaf
+                  case Some(leaf) =>
+                    //(schema.`type`.equals(Arr) && schema.maxItems.getOrElse(1.0) == 0.0) || (schema.`type`.equals(Obj) && schema.maxProperties.getOrElse(1.0) == 0.0)
+                    if(leaf.value.size == 0) // is an empty array or empty obj
+                      return BigInt(1)
+                    leaf.value.map(x => {
+                      if(!x._2.oneOf.equals(None)) // is a oneOf
+                        calculatePrecision(x._2) + (if(requiredSet.contains(x._1)) BigInt(0) else BigInt(1))
+                      else
+                        calculatePrecision(x._2) * (if(requiredSet.contains(x._1)) BigInt(1) else BigInt(2))
+                    }).reduce(_*_)
+                }
+              case Some(item) => calculatePrecision(item.value)
             }
-          case Some(item) => calculatePrecision(item.value)
         }
       case Some(anyOf) => anyOf.value.map(calculatePrecision(_)).reduce(_+_)
     }
