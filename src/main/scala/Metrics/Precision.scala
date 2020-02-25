@@ -2,10 +2,13 @@ package Metrics
 
 import Types.JsonSchema.{Arr, Bool, JSS, JsonSchemaType, Null, Num, Obj, Str}
 
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+
 object Precision {
 
   // TODO for global precision first strip required fields whose lineage isn't also required
-  def calculatePrecision(schema: JSS): BigInt = {
+  def calculatePrecision(schema: JSS, name: ListBuffer[Any] = ListBuffer[Any](), countedAdditionalProperties: mutable.Set[ListBuffer[Any]] = mutable.Set[ListBuffer[Any]]()): BigInt = {
     val requiredSet: Set[String] = schema.required match {
       case Some(v) => v.value
       case None => Set[String]()
@@ -14,27 +17,38 @@ object Precision {
     schema.anyOf match {
       case None =>
         schema.oneOf match {
-          case Some(oneOf) => oneOf.value.map(calculatePrecision(_)).reduce(_+_)
+          case Some(oneOf) => oneOf.value.map(calculatePrecision(_, name, countedAdditionalProperties)).reduce(_+_)
           case None =>
             schema.items match {
               case None =>
-                schema.properties match {
-                  case None => return BigInt(1) // leaf
-                  case Some(leaf) =>
-                    //(schema.`type`.equals(Arr) && schema.maxItems.getOrElse(1.0) == 0.0) || (schema.`type`.equals(Obj) && schema.maxProperties.getOrElse(1.0) == 0.0)
-                    if(leaf.value.size == 0) // is an empty array or empty obj
-                      return BigInt(1)
-                    leaf.value.map(x => {
-                      if(!x._2.oneOf.equals(None)) // is a oneOf
-                        calculatePrecision(x._2) + (if(requiredSet.contains(x._1)) BigInt(0) else BigInt(1))
-                      else
-                        calculatePrecision(x._2) * (if(requiredSet.contains(x._1)) BigInt(1) else BigInt(2))
-                    }).reduce(_*_)
+                val additonalProperties = schema.additionalProperties match {
+                  case Some(p) =>
+                    p.value
+                  case None => false
                 }
-              case Some(item) => calculatePrecision(item.value)
+                if(additonalProperties && countedAdditionalProperties.contains(name)) {
+                  return return BigInt(1)
+                } else {
+                  if(additonalProperties) countedAdditionalProperties.add(name)
+                  schema.properties match {
+                    case None => return BigInt(1) // leaf
+                    case Some(leaf) =>
+                      //(schema.`type`.equals(Arr) && schema.maxItems.getOrElse(1.0) == 0.0) || (schema.`type`.equals(Obj) && schema.maxProperties.getOrElse(1.0) == 0.0)
+                      if (leaf.value.size == 0) // is an empty array or empty obj
+                        return BigInt(1)
+                      leaf.value.map(x => {
+                        if (!x._2.oneOf.equals(None)) // is a oneOf
+                          calculatePrecision(x._2, name ++ ListBuffer[Any](x._1), countedAdditionalProperties) + (if (requiredSet.contains(x._1)) BigInt(0) else BigInt(1))
+                        else
+                          calculatePrecision(x._2, name ++ ListBuffer[Any](x._1), countedAdditionalProperties) * (if (requiredSet.contains(x._1)) BigInt(1) else BigInt(2))
+                      }).reduce(_ * _)
+                  }
+                }
+
+              case Some(item) => calculatePrecision(item.value, name, countedAdditionalProperties)
             }
         }
-      case Some(anyOf) => anyOf.value.map(calculatePrecision(_)).reduce(_+_)
+      case Some(anyOf) => anyOf.value.map(calculatePrecision(_, name, countedAdditionalProperties)).reduce(_+_)
     }
 
   }
