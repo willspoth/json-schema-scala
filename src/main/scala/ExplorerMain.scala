@@ -31,9 +31,9 @@ object ExplorerMain {
     val outputFile = new FileWriter(args(0)+".res",true)
     val configFile: String = args(1)
 
-    var limit: Option[Int] = None
+    var validate: Boolean = true
     if(args.size == 3){
-      limit = Some(args(2).toInt)
+      validate = args(2).equals("true")
     }
 
     var numberOfRows: Option[Int] = None
@@ -66,21 +66,23 @@ object ExplorerMain {
         case None => None
       }
 
-      val (train,validation) = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,seed,numberOfRows)
+      if(validate){
+        val (train,validation) = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,seed,numberOfRows)
 
+        val validationInfo = Metrics.Validation.calculateValidation(schema,validation)
+        log += LogOutput("ValidationSizeActual",validation.count().toString,"ValidationSizeActual: ")
+        log += LogOutput("Validation",(validationInfo._1/validationInfo._2).toString(),"Validation: ")
+      }
 
       log += LogOutput("inputFile",inputFile,"inputFile: ")
       log += LogOutput("TotalTime",totalTime,"TotalTime: ")
 
       log += LogOutput("TrainPercent",trainPrecent.toString,"TrainPercent: ")
       log += LogOutput("ValidationSize",validationSize.toString,"ValidationSize: ")
-      log += LogOutput("ValidationSizeActual",validation.count().toString,"ValidationSizeActual: ")
-      log += LogOutput("ValidationRowLimit",limit.toString,"ValidationRowLimit: ")
       log += LogOutput("Seed",seed.toString,"Seed: ")
 
       log += LogOutput("Precision",Metrics.Precision.calculatePrecision(schema).toString(),"Precision: ")
-      val validationInfo = Metrics.Validation.calculateValidation(schema,validation,limit.getOrElse(0))
-      log += LogOutput("Validation",(validationInfo._1/validationInfo._2).toString(),"Validation: ")
+
 //      log += LogOutput("Saturation","["+validationInfo._2.mkString(",")+"]","Saturation: ")
       log += LogOutput("Grouping",Metrics.Grouping.calculateGrouping(schema).toString(),"Grouping: ")
       log += LogOutput("BaseSchemaSize",Metrics.Grouping.calculateBaseSchemaSize(schema).toString(),"Base Schemas Size: ")

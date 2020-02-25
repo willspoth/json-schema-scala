@@ -23,15 +23,15 @@ object Validation {
     (res,rows.size.toDouble)
   }
 
-  def calculateValidation(schema: JSS, rows: RDD[String], limit: Int = 0): (Double,Double) = {
-    val res: Double = rows.zipWithIndex().filter(x => (limit == 0 || x._2.toInt < limit)).map(_._1).map(x => {
+  def calculateValidation(schema: JSS, rows: RDD[String]): (Double,Double) = {
+    val res: Double = rows.zipWithIndex().map(_._1).map(x => {
       if(validateRow(schema,Types.Json.shred(x)))
         1.0
       else
         0.0
     }).reduce(_+_)
 
-    (res,if(limit == 0) rows.count().toDouble else limit.toDouble)
+    (res,rows.count().toDouble)
 
   }
 
