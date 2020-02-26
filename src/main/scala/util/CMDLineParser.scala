@@ -22,6 +22,7 @@ object CMDLineParser {
                     name: String,
                     argMap: mutable.HashMap[String, String],
                     Schema: String,
+                    outputBad: Boolean,
                     configMap: Map[String, String]
                    )
 
@@ -76,9 +77,15 @@ object CMDLineParser {
       case None => None
     }
 
+    val outputBad: Boolean = argMap.get("bad") match { // output bad file
+      case Some(v) => v.equals("true") || v.equals("t")
+      case None => false
+    }
+
+
     val (train, validation) = split(spark, validationfilename, trainPercent, validationSize, seed, numberOfRows)
 
-    return config(schemafilename, validationfilename, logFileName, train, validation, trainPercent, validationSize, seed, spark, spark.conf.get("name").toString, argMap, schema, spark.conf.getAll)
+    return config(schemafilename, validationfilename, logFileName, train, validation, trainPercent, validationSize, seed, spark, spark.conf.get("name").toString, argMap, schema, outputBad, spark.conf.getAll)
   }
 
 
@@ -124,7 +131,7 @@ object CMDLineParser {
         .randomSplit(Array[Double](trainSize, validationSize.toDouble, overflow), seed = seed.get)
     } // read file
     val train: RDD[String] = data.head
-    val validation: RDD[String] = data(1)
+    val validation: RDD[String] = data(1).filter(_.size > 0)
 
     return (train, validation)
   }

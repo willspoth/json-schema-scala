@@ -11,7 +11,7 @@ object SparkMain {
 
     println("Precision: "+ Metrics.Precision.calculatePrecision(schema).toString())
     println("Grouping: "+ Metrics.Grouping.calculateGrouping(schema).toString())
-    println("Validation: "+ Metrics.Validation.calculateValidation(schema,config.spark.sparkContext.textFile(config.validationFileName)).toString())
+    println("Validation: "+ Metrics.Validation.calculateValidation(schema,config.spark.sparkContext.textFile(config.validationFileName),config.outputBad).toString())
   }
 
 }

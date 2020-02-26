@@ -69,9 +69,15 @@ object ExplorerMain {
       if(validate){
         val (train,validation) = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,seed,numberOfRows)
 
-        val validationInfo = Metrics.Validation.calculateValidation(schema,validation)
+        val validationInfo = Metrics.Validation.calculateValidation(schema,validation,(args.size >= 3)&&validate)
         log += LogOutput("ValidationSizeActual",validation.count().toString,"ValidationSizeActual: ")
         log += LogOutput("Validation",(validationInfo._1/validationInfo._2).toString(),"Validation: ")
+        if((args.size >= 3)&&validate) {
+          val badFile = new FileWriter(args(0)+".res.bad",true)
+          validationInfo._3.foreach(x => badFile.write(x+"\n"))
+          badFile.flush()
+          badFile.close()
+        }
       }
 
       log += LogOutput("inputFile",inputFile,"inputFile: ")

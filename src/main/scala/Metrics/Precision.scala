@@ -27,7 +27,7 @@ object Precision {
                   case None => false
                 }
                 if(additonalProperties && countedAdditionalProperties.contains(name)) {
-                  return return BigInt(1)
+                  return BigInt(1)
                 } else {
                   if(additonalProperties) countedAdditionalProperties.add(name)
                   schema.properties match {
@@ -41,7 +41,7 @@ object Precision {
                           calculatePrecision(x._2, name ++ ListBuffer[Any](x._1), countedAdditionalProperties) + (if (requiredSet.contains(x._1)) BigInt(0) else BigInt(1))
                         else
                           calculatePrecision(x._2, name ++ ListBuffer[Any](x._1), countedAdditionalProperties) * (if (requiredSet.contains(x._1)) BigInt(1) else BigInt(2))
-                      }).reduce(_ * _)
+                      }).reduce(_*_)
                   }
                 }
 
