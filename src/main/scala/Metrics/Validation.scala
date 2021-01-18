@@ -1,5 +1,7 @@
 package Metrics
 
+import java.io.FileWriter
+
 import Types.Json.{JE_Array, JE_Boolean, JE_Empty_Array, JE_Empty_Object, JE_Null, JE_Numeric, JE_Object, JE_String}
 import Types.JsonSchema.{Arr, Bool, JSA_additionalProperties, JSA_required, JSS, Null, Num, Obj, Str}
 import org.apache.spark.rdd.RDD
@@ -12,9 +14,9 @@ object Validation {
 
   //val logger = Logger.getLogger(this.getClass)
 
-  def calculateValidation(schema: JSS, rows: Array[String]): (Double,Double) = {
+  def calculateValidation(schema: JSS, rows: Array[String], checkRequired: Boolean): (Double,Double) = {
     val res: Double = rows.map(x => {
-      if(validateRow(schema,Types.Json.shred(x)))
+      if(validateRow(schema,Types.Json.shred(x), checkRequired = checkRequired))
         1.0
       else
         0.0
@@ -23,30 +25,28 @@ object Validation {
     (res,rows.size.toDouble)
   }
 
-  def calculateValidation(schema: JSS, rows: RDD[String], outputBad: Boolean): (Double,Double,ListBuffer[String]) = {
-    val bad = ListBuffer[String]()
-    val res: Double = rows.map(x => {
-      if(validateRow(schema,Types.Json.shred(x)))
-        1.0
+  def calculateValidation(schema: JSS, rows: RDD[String], checkRequired: Boolean, badFileName: String): (Double,Double) = {
+    val res: RDD[(Double,String)] = rows.zipWithIndex().map(x => {
+      if(validateRow(schema,Types.Json.shred(x._1),checkRequired = checkRequired))
+        (1.0,"")
       else {
-        if(outputBad) {
-          println(x)
-          bad.append(x)
-        }
-        0.0
+        (0.0,x._2.toString+","+x._1+"\n")
       }
-    }).reduce(_+_)
+    })
 
-    (res,rows.count().toDouble,bad)
+    val outputFile = new FileWriter(badFileName)
+    outputFile.write(res.map(_._2).reduce(_+_))
+    outputFile.close()
 
+    (res.map(_._1).reduce(_+_),rows.count().toDouble)
   }
 
-  def validateRow(schema: JSS, attribute: Types.Json.JsonExplorerType,depth: Int = 0,name: String = ""): Boolean = {
+  def validateRow(schema: JSS, attribute: Types.Json.JsonExplorerType,depth: Int = 0,name: String = "", checkRequired:Boolean = true): Boolean = {
     //logger.trace(("\t"*depth) + name + ": validating attribute")
 
     schema.anyOf match {
       case Some(anyOf) =>
-        !anyOf.value.zipWithIndex.map( s => validateRow(s._1,attribute,depth+1,name+"anyOf["+s._2.toString+"]")).forall(!_)
+        !anyOf.value.zipWithIndex.map( s => validateRow(s._1,attribute,depth+1,name+"anyOf["+s._2.toString+"]",checkRequired=checkRequired)).forall(!_)
       case None =>
         if (!schema.oneOf.equals(None)){
           val matches = schema.oneOf.get.value.map( s => validateRow(s,attribute,depth+1,name)).map(x => if (x) 1 else 0)
@@ -113,7 +113,7 @@ object Validation {
                   case Some(s) =>
                     s.value.get(n) match {
                       case Some(v) =>
-                        validateRow(v, t,depth+1, n)
+                        validateRow(v, t,depth+1, n,checkRequired=checkRequired)
                       case None =>
                         //logger.debug(("\t"*depth) + name + ": Attribute " + n + " not found")
                         false || additionalProperties
@@ -135,8 +135,8 @@ object Validation {
                 //logger.debug(("\t"*depth) + name + "Passes only due to additional properties")
               }
 
-              schema.`type`.get.value.equals(Obj) &&
-                (passesRequiredCheck || additionalProperties) &&
+              schema.`type`.get.value.equals(Obj) &&(
+                if(checkRequired)(passesRequiredCheck || additionalProperties) else true )&&
                 allAttributesPass
 
 
@@ -157,7 +157,7 @@ object Validation {
               val arrayCheck: Boolean = (a.map(sArr => {
                 schema.items match {
                   case Some(s) =>
-                    validateRow(s.value, sArr,depth+1, name + "[*]")
+                    validateRow(s.value, sArr,depth+1, name + "[*]",checkRequired=checkRequired)
                   case None =>
                     schema.`type` match {
                       case Some(jst) => jst.value.equals(Arr)

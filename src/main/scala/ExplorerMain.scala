@@ -8,9 +8,9 @@ import util.CMDLineParser
 
 import scala.collection.mutable
 import scala.io.Source
-
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
+import org.apache.spark.rdd.RDD
 
 
 //java -Xmx10g -Xss10m -jar JsonSchemaSigmod.jar yelpUSFixed.log yelp.conf
@@ -36,9 +36,9 @@ object ExplorerMain {
       validate = args(2).equals("true")
     }
 
-    var numberOfRows: Option[Int] = None
+    var valFile: Option[String] = None
     if(args.size == 4){
-      numberOfRows = Some(args(3).toInt)
+      valFile = Some(args(3))
     }
 
     var forcedInputFile: Option[String] = None
@@ -67,17 +67,20 @@ object ExplorerMain {
       }
 
       if(validate){
-        val (train,validation) = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,seed,numberOfRows)
 
-        val validationInfo = Metrics.Validation.calculateValidation(schema,validation,(args.size >= 3)&&validate)
+        var train: RDD[String] = null
+        var validation: RDD[String] = null
+        valFile match {
+          case Some(f) => validation = spark.sparkContext.textFile(f)
+          case None => val x = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,seed,None)
+            train = x._1
+            validation = x._2
+        }
+
+
+        val validationInfo = Metrics.Validation.calculateValidation(schema,validation,false,args(0)+"-"+seed.get.toString+".bad")
         log += LogOutput("ValidationSizeActual",validation.count().toString,"ValidationSizeActual: ")
         log += LogOutput("Validation",(validationInfo._1/validationInfo._2).toString(),"Validation: ")
-        if((args.size >= 3)&&validate) {
-          val badFile = new FileWriter(args(0)+".res.bad",true)
-          validationInfo._3.foreach(x => badFile.write(x+"\n"))
-          badFile.flush()
-          badFile.close()
-        }
       }
 
       log += LogOutput("inputFile",inputFile,"inputFile: ")

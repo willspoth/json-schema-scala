@@ -42,9 +42,9 @@ object CMDLineParser {
     // spark config
     val spark = createSparkSession(argMap.get("config"))
 
-//    val h: Configuration = spark.sparkContext.hadoopConfiguration
-//    h.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
-//    h.set("fs.file.impl", classOf[org.apache.hadoop.fs.LocalFileSystem].getName)
+    val h: Configuration = spark.sparkContext.hadoopConfiguration
+    h.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
+    h.set("fs.file.impl", classOf[org.apache.hadoop.fs.LocalFileSystem].getName)
 
 
     val schema: String = argMap.get("schema") match {
@@ -101,9 +101,9 @@ object CMDLineParser {
           (s.split("=").head.trim, s.split("=").last.trim)
         })
         conf.setAll(args)
-        org.apache.spark.sql.SparkSession.builder.config(conf).getOrCreate()
+        org.apache.spark.sql.SparkSession.builder.master("local[*]").appName("json-schema").config(conf).getOrCreate()
       } catch {
-          case _: java.lang.NullPointerException =>org.apache.spark.sql.SparkSession.builder.master("local[*]").appName("json-schema-scala").getOrCreate()
+          case _: java.lang.NullPointerException =>org.apache.spark.sql.SparkSession.builder.master("local[*]").appName("json-schema").getOrCreate()
       }
 
     return spark

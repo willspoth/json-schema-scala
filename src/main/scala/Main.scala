@@ -19,21 +19,23 @@ object Main {
 
     println("Grouping: "+ Metrics.Grouping.calculateGrouping(schema).toString())
 
+    val checkRequired = true
+
     config.validate match {
       case Some(s) =>
         if (s.charAt(0).equals('{')) { // guess is string for now
-          val v = Metrics.Validation.calculateValidation(schema,Array(s))
+          val v = Metrics.Validation.calculateValidation(schema,Array(s),checkRequired)
           if((v._1/v._2) == 1.0) println("true") else println("false")
         } else {
           val f = new java.io.File(s)
           if(f.exists() && f.isFile){ // is single file
-            val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(s).getLines.toArray)
+            val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(s).getLines.toArray,checkRequired)
             println("Validation: " + (v._1/v._2).toString)
 //            println("Schema Saturation: " + v._2.mkString(","))
           } else if(f.exists() && f.isDirectory){ // is directory
             val files = getListOfFiles(s)
             val totalVal = files.filter(x => !x.getName.charAt(0).equals('_') && !x.getName.charAt(0).equals('.')).map(file => {
-              val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(file.toString).getLines.toArray)
+              val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(file.toString).getLines.toArray,checkRequired)
               println(file.getName+" validation: " + (v._1/v._2).toString)
 //              println("Schema Saturation: " + v._2.mkString(","))
               v
