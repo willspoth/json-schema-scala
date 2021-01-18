@@ -1,3 +1,5 @@
+package JsonParser
+
 import fastparse.{Parsed, _}
 import MultiLineWhitespace._
 

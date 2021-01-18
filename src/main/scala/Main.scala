@@ -1,108 +1,100 @@
+import java.io.FileWriter
+
+import JsonParser.JsonSchemaParser
 import Types.JsonSchema.JSS
-import org.apache.log4j.{BasicConfigurator, Level, Logger}
+import org.apache.hadoop.conf.Configuration
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
+import util.CMDLineParser
 
+import scala.collection.mutable
 import scala.io.Source
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
+import org.apache.spark.rdd.RDD
+import util.Utils.jsonToMap
 
+
+//java -Xmx10g -Xss10m -jar json-schema.jar yelpUSFixed.log yelp.conf
+//../extractor/schemas/github.*.log ../extractor/schemas/*.groundtruth.log -d
 object Main {
 
   def main(args: Array[String]): Unit = {
-    val config = readArgs(args)
 
-    BasicConfigurator.configure()
-    val validationLogger: Logger  = Logger.getLogger(Metrics.Validation.getClass)
-    validationLogger.setLevel(config.logLevel)
+    //Logger.getLogger("org").setLevel(Level.OFF)
+    //Logger.getLogger("akka").setLevel(Level.OFF)
+    Logger.getLogger(Metrics.Validation.getClass).setLevel(Level.OFF)
 
-    val schema: JSS = JsonSchemaParser.jsFromFile(config.schemaFile)
+    // logFile
+    val configFile: Option[String] = if(args.filterNot(_.equals("-p")).size > 1) Some(args(1)) else None
 
-    if(config.calculatePrecision)
-      println("Precision: "+ Metrics.Precision.calculatePrecision(schema).toString())
+    val validate: Boolean = !args.contains("-p")
+    val distance: Boolean = args.contains("-d")
 
-    println("Grouping: "+ Metrics.Grouping.calculateGrouping(schema).toString())
+    if(distance) { // exits if true
+      Metrics.Distance.calcDistance(args(0), args(1), if(!args(2).equals("-d")) args(2) else "symmetric")
+      sys.exit(0)
+    }
 
-    val checkRequired = true
+    val logIter = Source.fromFile(args(0)).getLines()
+    val outputFile = new FileWriter(args(0)+".res",true)
+    val spark = CMDLineParser.createSparkSession(configFile)
 
-    config.validate match {
-      case Some(s) =>
-        if (s.charAt(0).equals('{')) { // guess is string for now
-          val v = Metrics.Validation.calculateValidation(schema,Array(s),checkRequired)
-          if((v._1/v._2) == 1.0) println("true") else println("false")
-        } else {
-          val f = new java.io.File(s)
-          if(f.exists() && f.isFile){ // is single file
-            val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(s).getLines.toArray,checkRequired)
-            println("Validation: " + (v._1/v._2).toString)
-//            println("Schema Saturation: " + v._2.mkString(","))
-          } else if(f.exists() && f.isDirectory){ // is directory
-            val files = getListOfFiles(s)
-            val totalVal = files.filter(x => !x.getName.charAt(0).equals('_') && !x.getName.charAt(0).equals('.')).map(file => {
-              val v = Metrics.Validation.calculateValidation(schema,Source.fromFile(file.toString).getLines.toArray,checkRequired)
-              println(file.getName+" validation: " + (v._1/v._2).toString)
-//              println("Schema Saturation: " + v._2.mkString(","))
-              v
-            }).map(_._1).reduce(_*_)
-            println("Dir " + s + " Validation: " + totalVal.toString)
+    while(logIter.hasNext){
+      val log: mutable.ListBuffer[LogOutput] = mutable.ListBuffer[LogOutput]()
+      val info: Map[String,String] = jsonToMap(logIter.next())
+      val schema: JSS = JsonSchemaParser.jsFromString(logIter.next())
+      info.get("TrainPercent") match {
+        case Some(v) =>
+          if(v.equals("1.0")){
+            val inputFile: String = info.get("inputFile").get
+            val totalTime: String = info.get("TotalTime").get
+            val trainPrecent: Double = info.get("TrainPercent").get.toDouble
+            val validationSize: Int = info.get("ValidationSize").get.toInt
+            val seed: Option[Int] = info.get("Seed") match {
+              case Some(s) => if(s.equals("None")) None else Some(s.toInt)
+              case None => None
+            }
 
-          } else {
-            throw new Exception("file " + s + " existence: " + f.exists().toString)
+            if(validate){
+
+              val (_,validation): (RDD[String],RDD[String]) = CMDLineParser.split(spark,inputFile,trainPrecent,validationSize,seed,None)
+
+
+              val validationInfo = Metrics.Validation.calculateValidation(schema,validation)
+              log += LogOutput("ValidationSizeActual",validation.count().toString,"ValidationSizeActual: ")
+              log += LogOutput("Validation",(validationInfo._1/validationInfo._2).toString(),"Validation: ")
+              val totalWrong = validationInfo._2-validationInfo._1
+              log += LogOutput("RequiredEdits",(validationInfo._3).toString(),"Required Edits: ")
+              log += LogOutput("TotalWrong",(totalWrong).toString(),"Total Wrong Rows: ")
+            }
+
+            log += LogOutput("inputFile",inputFile,"inputFile: ")
+            log += LogOutput("TotalTime",totalTime,"TotalTime: ")
+
+            log += LogOutput("TrainPercent",trainPrecent.toString,"TrainPercent: ")
+            log += LogOutput("ValidationSize",validationSize.toString,"ValidationSize: ")
+            log += LogOutput("Seed",seed.toString,"Seed: ")
+
+            log += LogOutput("Precision",Metrics.Precision.calculatePrecision(schema).toString(),"Precision: ")
+
+            //      log += LogOutput("Saturation","["+validationInfo._2.mkString(",")+"]","Saturation: ")
+            log += LogOutput("Grouping",Metrics.Grouping.calculateGrouping(schema).toString(),"Grouping: ")
+            log += LogOutput("BaseSchemaSize",Metrics.Grouping.calculateBaseSchemaSize(schema).toString(),"Base Schemas Size: ")
+
+            outputFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
+            outputFile.flush()
+            println(log.map(_.toString).mkString("\n"))
           }
-        }
-      case None => // do nothing
-    }
-
-  }
-
-  def readArgs(args: Array[String]): config = {
-    if (args.size == 0 || args.size % 2 == 0) {
-      println("Unexpected Argument, should be, schemaFileName val string|file|dir prec true logLevel INFO")
-      System.exit(0)
-    }
-    val argMap = scala.collection.mutable.HashMap[String, String]()
-    val schemaFile: String = args(0)
-    if (args.tail.size > 1) {
-      args.tail.zip(args.tail.tail).zipWithIndex.filter(_._2 % 2 == 0).map(_._1).foreach(x => argMap.put(x._1, x._2))
-    }
-
-    val calculatePrecision: Boolean = argMap.get("prec") match {
-      case Some("true" | "t" | "y" | "yes") => true
-      case Some("n" | "no" | "false" | "f") => false
-      case _ | None => true
-    }
-
-    val logLevel: Level = argMap.get("logLevel") match {
-      case Some(s) => s.toUpperCase() match {
-        case "TRACE" => Level.TRACE
-        case "DEBUG" => Level.DEBUG
-        case "ALL" => Level.ALL
-        case "INFO" => Level.INFO
-        case "WARN" => Level.WARN
-        case _ => Level.WARN
+        case None =>
       }
-      case _ | None => Level.OFF
     }
 
-    val validate: Option[String] = argMap.get("val")
-
-    config(
-      schemaFile,
-      calculatePrecision,
-      validate,
-      logLevel
-    )
+    outputFile.close()
   }
 
-  case class config(schemaFile: String,
-                    calculatePrecision: Boolean,
-                    validate: Option[String],
-                    logLevel: Level
-                   )
-
-  def getListOfFiles(dir: String):List[java.io.File] = {
-    val d = new java.io.File(dir)
-    if (d.exists && d.isDirectory) {
-      d.listFiles.filter(_.isFile).toList
-    } else {
-      List[java.io.File]()
-    }
+  case class LogOutput(label:String, value:String, printPrefix:String, printSuffix:String = ""){
+    override def toString: String = s"""${printPrefix}${value}${printSuffix}"""
+    def toJson: String = s""""${label}":"${value}""""
   }
-
 }
